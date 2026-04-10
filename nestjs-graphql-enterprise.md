@@ -9,7 +9,7 @@
 1. [Why Code-First?](#why-code-first)
 2. [Complete Project Tree](#complete-project-tree)
 3. [Feature Module Structure](#feature-module-structure)
-4. [Infrastructure Layer — `libs/](#infrastructure-layer--libs)`
+4. [Infrastructure Layer — `libs/](#infrastructure-layer--libs)
 5. [Cross-Cutting Concerns](#cross-cutting-concerns)
 6. [Key File Implementations](#key-file-implementations)
 
