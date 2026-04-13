@@ -16,8 +16,9 @@ Open [`index.html`](./index.html) in a browser to browse all project structures 
 
 | Project | Stack | Interactive | Docs |
 | --- | --- | --- | --- |
-| **Print Designer** | React 19 · TypeScript · Vite 6 · Fabric.js 6 · Zustand · Tailwind CSS 4 | [`View`](./projects/print-designer/index.html) | [`README`](./projects/print-designer/README.md) |
-| **NestJS Code-First GraphQL** | NestJS · GraphQL (code-first) · Apollo · TypeORM · Redis · BullMQ | [`View`](./projects/nestjs-graphql/index.html) | [`README`](./projects/nestjs-graphql/README.md) |
+| **Print Designer** | React 19 · TypeScript · Vite 6 · Fabric.js 6 · Zustand · Apollo Client · GraphQL Codegen · Tailwind CSS 4 | [`View`](./projects/print-designer/index.html) | [`README`](./projects/print-designer/README.md) |
+| **NestJS Code-First GraphQL** | NestJS · GraphQL (code-first) · Apollo Server · TypeORM · Redis · BullMQ | [`View`](./projects/nestjs-graphql/index.html) | [`README`](./projects/nestjs-graphql/README.md) |
+| **Next.js Enterprise Ecommerce** | Next.js 16 · React 19 · TypeScript · Apollo Client · GraphQL Codegen · Auth.js v5 · Tailwind CSS 4 | [`View`](./projects/nextjs-enterprise/index.html) | [`README`](./projects/nextjs-enterprise/README.md) |
 
 > More stacks will be added under `projects/`. Each will follow the same structure: **interactive HTML viewer + detailed markdown documentation**.
 
@@ -33,7 +34,10 @@ project-structure/
     ├── print-designer/
     │   ├── index.html                  # Interactive structure viewer
     │   └── README.md                   # Detailed markdown documentation
-    └── nestjs-graphql/
+    ├── nestjs-graphql/
+    │   ├── index.html                  # Interactive structure viewer
+    │   └── README.md                   # Detailed markdown documentation
+    └── nextjs-enterprise/
         ├── index.html                  # Interactive structure viewer
         └── README.md                   # Detailed markdown documentation
 ```
