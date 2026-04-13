@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Next.js Enterprise Ecommerce — Project Structure</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0e1a;--bg-card:#111827;--bg-code:#0d1117;--bg-hover:#1e293b;--border:#1e293b;--text:#e2e8f0;--text-dim:#64748b;--text-muted:#94a3b8;--blue:#3b82f6;--purple:#8b5cf6;--green:#10b981;--yellow:#eab308;--orange:#f97316;--pink:#ec4899;--red:#f43f5e;--cyan:#06b6d4;--teal:#14b8a6}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;-webkit-font-smoothing:antialiased}
+.container{max-width:1100px;margin:0 auto;padding:40px 32px 80px}
+.header{text-align:center;padding:60px 0 48px;border-bottom:1px solid var(--border);margin-bottom:48px}
+.header h1{font-size:36px;font-weight:800;letter-spacing:-.03em;background:linear-gradient(135deg,var(--blue),var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:12px}
+.header .subtitle{font-size:15px;color:var(--text-muted)}
+.tech-stack{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:20px}
+.tech-badge{padding:4px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--border);color:var(--text-muted);background:var(--bg-card)}
+.tech-badge.primary{border-color:var(--blue);color:var(--blue);background:rgba(59,130,246,.08)}
+.stats-bar{display:flex;gap:24px;justify-content:center;flex-wrap:wrap;margin-top:24px;padding:16px;background:var(--bg-card);border-radius:10px;border:1px solid var(--border)}
+.stat{text-align:center}
+.stat-value{font-size:28px;font-weight:800;letter-spacing:-.03em}
+.stat-label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.section{margin-bottom:48px}
+.section-title{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid var(--border);display:flex;align-items:center;gap:10px}
+.section-title .dot{width:8px;height:8px;border-radius:50%;background:var(--blue)}
+table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:14px}
+th{text-align:left;padding:10px 16px;background:var(--bg-card);border:1px solid var(--border);font-weight:600;color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+td{padding:10px 16px;border:1px solid var(--border);color:var(--text)}
+td:first-child{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--blue);white-space:nowrap}
+tr:hover td{background:rgba(30,41,59,.4)}
+.tree-container{background:var(--bg-code);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.tree-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;background:var(--bg-card);border-bottom:1px solid var(--border)}
+.tree-header-title{font-size:13px;font-weight:600;color:var(--text-muted);display:flex;align-items:center;gap:8px}
+.tree-actions{display:flex;gap:8px}
+.tree-btn{padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:0 0;color:var(--text-muted);font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s}
+.tree-btn:hover{background:var(--bg-hover);color:var(--text);border-color:var(--text-dim)}
+.filter-bar{padding:10px 20px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.filter-btn{padding:3px 10px;font-size:11px;font-weight:500;border-radius:4px;cursor:pointer;font-family:inherit;transition:all .15s;text-transform:capitalize;border:1px solid rgba(148,163,184,.15);background:0 0;color:var(--text-muted)}
+.filter-btn:hover{border-color:var(--text-dim);color:var(--text)}
+.filter-btn.active{border-color:var(--blue);color:var(--blue);background:rgba(59,130,246,.1)}
+.filter-btn.active[data-type="component"]{border-color:var(--purple);color:var(--purple);background:rgba(168,85,247,.1)}
+.filter-btn.active[data-type="graphql"]{border-color:var(--pink);color:var(--pink);background:rgba(236,72,153,.1)}
+.filter-btn.active[data-type="page"]{border-color:var(--green);color:var(--green);background:rgba(16,185,129,.1)}
+.filter-btn.active[data-type="config"]{border-color:#6b7280;color:#6b7280;background:rgba(107,114,128,.1)}
+.filter-btn.active[data-type="store"]{border-color:var(--yellow);color:var(--yellow);background:rgba(234,179,8,.1)}
+.filter-btn.active[data-type="action"]{border-color:var(--orange);color:var(--orange);background:rgba(249,115,22,.1)}
+.filter-btn.active[data-type="hook"]{border-color:var(--cyan);color:var(--cyan);background:rgba(6,182,212,.1)}
+.search-box{padding:10px 20px;border-bottom:1px solid var(--border)}
+.search-input{width:100%;padding:8px 14px;background:rgba(148,163,184,.06);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:inherit;outline:0;transition:border-color .15s}
+.search-input:focus{border-color:var(--blue)}
+.search-input::placeholder{color:var(--text-dim)}
+.tree-content{max-height:75vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.tree-content::-webkit-scrollbar{width:6px}
+.tree-content::-webkit-scrollbar-track{background:0 0}
+.tree-content::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.tree-node{display:flex;align-items:flex-start;gap:6px;padding:5px 16px;border-bottom:1px solid rgba(30,41,59,.5);cursor:default;transition:background .12s;min-height:34px}
+.tree-node:hover{background:rgba(148,163,184,.04)}
+.tree-node.folder{cursor:pointer}
+.tree-toggle{width:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding-top:3px;color:var(--text-dim);font-size:10px;user-select:none}
+.tree-icon{flex-shrink:0;padding-top:2px;font-size:14px}
+.tree-info{flex:1;min-width:0}
+.tree-name-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tree-name{font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:-.01em}
+.tree-name.is-folder{font-weight:600;color:var(--text)}
+.tree-name.is-file{font-weight:400;color:var(--text-muted)}
+.tree-tag{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:1px 7px;border-radius:4px}
+.tree-type-badge{font-size:10px;font-weight:500;padding:1px 7px;border-radius:4px}
+.tree-count{font-size:10px;color:var(--text-dim)}
+.tree-desc{font-size:11.5px;color:var(--text-dim);margin-top:2px;line-height:1.5}
+.tag-app{color:#3b82f6;border:1px solid #3b82f640;background:#3b82f615}
+.tag-route-group{color:#8b5cf6;border:1px solid #8b5cf640;background:#8b5cf615}
+.tag-api{color:#06b6d4;border:1px solid #06b6d440;background:#06b6d415}
+.tag-actions{color:#f97316;border:1px solid #f9731640;background:#f9731615}
+.tag-components{color:#10b981;border:1px solid #10b98140;background:#10b98115}
+.tag-graphql{color:#ec4899;border:1px solid #ec489940;background:#ec489915}
+.tag-lib{color:#eab308;border:1px solid #eab30840;background:#eab30815}
+.tag-hooks{color:#06b6d4;border:1px solid #06b6d440;background:#06b6d415}
+.tag-services{color:#10b981;border:1px solid #10b98140;background:#10b98115}
+.tag-stores{color:#eab308;border:1px solid #eab30840;background:#eab30815}
+.tag-types{color:#6366f1;border:1px solid #6366f140;background:#6366f115}
+.tag-config{color:#6b7280;border:1px solid #6b728040;background:#6b728015}
+.tag-testing{color:#f97316;border:1px solid #f9731640;background:#f9731615}
+.tag-devops{color:#64748b;border:1px solid #64748b40;background:#64748b15}
+.tag-ecommerce{color:#ec4899;border:1px solid #ec489940;background:#ec489915}
+.type-page{color:#10b981;background:rgba(16,185,129,.1)}
+.type-component{color:#8b5cf6;background:rgba(139,92,246,.1)}
+.type-graphql{color:#ec4899;background:rgba(236,72,153,.1)}
+.type-config{color:#6b7280;background:rgba(107,114,128,.1)}
+.type-store{color:#eab308;background:rgba(234,179,8,.1)}
+.type-action{color:#f97316;background:rgba(249,115,22,.1)}
+.type-hook{color:#06b6d4;background:rgba(6,182,212,.1)}
+.type-service{color:#10b981;background:rgba(16,185,129,.1)}
+.type-util{color:#94a3b8;background:rgba(148,163,184,.1)}
+.highlight{background:#facc15;color:#000;border-radius:2px;padding:0 2px}
+.flow-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:28px;margin-bottom:24px}
+.flow-card h3{font-size:15px;font-weight:700;margin-bottom:16px}
+.flow-steps{display:flex;flex-direction:column;gap:6px;font-family:'JetBrains Mono',monospace;font-size:13px}
+.flow-step{display:flex;align-items:center;gap:12px;padding:8px 14px;border-radius:6px;background:rgba(148,163,184,.04);border-left:3px solid var(--blue)}
+.flow-arrow{color:var(--text-dim);text-align:center;font-size:12px;padding-left:20px}
+.flow-step-label{color:var(--text)}
+.flow-step-detail{color:var(--text-dim);font-size:11px}
+.code-block{background:var(--bg-code);border:1px solid var(--border);border-radius:8px;padding:20px 24px;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.8;color:var(--text-muted);overflow-x:auto;margin-bottom:24px;white-space:pre}
+.hl-comment{color:#6b7280}.hl-key{color:#3b82f6}.hl-val{color:#10b981}.hl-cmd{color:#eab308}.hl-flag{color:#a855f7}
+@media(max-width:768px){.container{padding:20px 16px 60px}.header h1{font-size:24px}.stats-bar{gap:16px}.stat-value{font-size:22px}.tree-node{padding:5px 10px}table{font-size:12px}td,th{padding:8px 10px}.flow-card{padding:16px}}
+.back-link{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:13px;font-weight:500;text-decoration:none;transition:all .15s;margin-bottom:8px}
+.back-link:hover{border-color:var(--blue);color:var(--blue);background:rgba(59,130,246,.06)}
+@media print{body{background:#fff;color:#111}.tree-container{border-color:#ddd}.tree-content{max-height:none}.tree-btn,.search-box,.filter-bar,.back-link{display:none}}
+</style>
+</head>
+<body>
+<div class="container">
+
+<a class="back-link" href="../../index.html">&larr; All Projects</a>
+
+<header class="header">
+<div style="font-size:48px;margin-bottom:16px">🛒</div>
+<h1>Next.js Enterprise Ecommerce — Project Structure</h1>
+<p class="subtitle">A production-ready, scalable architecture for Next.js 16 ecommerce applications with App Router, GraphQL, and Apollo Client</p>
+<div class="tech-stack">
+<span class="tech-badge primary">Next.js 16</span>
+<span class="tech-badge primary">React 19</span>
+<span class="tech-badge primary">TypeScript</span>
+<span class="tech-badge primary">GraphQL</span>
+<span class="tech-badge primary">Apollo Client</span>
+<span class="tech-badge">Tailwind CSS 4</span>
+<span class="tech-badge">Zustand</span>
+<span class="tech-badge">Auth.js v5</span>
+<span class="tech-badge">Zod</span>
+<span class="tech-badge">Vitest</span>
+<span class="tech-badge">Playwright</span>
+</div>
+<div class="stats-bar">
+<div class="stat"><div class="stat-value" style="color:var(--blue)">35+</div><div class="stat-label">Directories</div></div>
+<div class="stat"><div class="stat-value" style="color:var(--purple)">90+</div><div class="stat-label">Total Files</div></div>
+<div class="stat"><div class="stat-value" style="color:var(--green)">50+</div><div class="stat-label">Source Files</div></div>
+<div class="stat"><div class="stat-value" style="color:var(--pink)">10+</div><div class="stat-label">GraphQL Ops</div></div>
+<div class="stat"><div class="stat-value" style="color:var(--yellow)">4</div><div class="stat-label">Route Groups</div></div>
+</div>
+</header>
+
+<!-- Tech Stack -->
+<section class="section">
+<h2 class="section-title"><span class="dot"></span>Tech Stack</h2>
+<table>
+<thead><tr><th>Layer</th><th>Technology</th></tr></thead>
+<tbody>
+<tr><td>Framework</td><td>Next.js 16 + React 19 (App Router)</td></tr>
+<tr><td>Language</td><td>TypeScript 5.5+ (strict mode)</td></tr>
+<tr><td>GraphQL</td><td>Apollo Client + GraphQL Code Generator</td></tr>
+<tr><td>Styling</td><td>Tailwind CSS 4 (CSS-native config) + shadcn/ui + CVA</td></tr>
+<tr><td>State</td><td>Zustand (client UI state + cart)</td></tr>
+<tr><td>Auth</td><td>Auth.js v5 (NextAuth v5)</td></tr>
+<tr><td>Validation</td><td>Zod (shared client + server schemas)</td></tr>
+<tr><td>Forms</td><td>React 19 useActionState + useFormStatus + useOptimistic</td></tr>
+<tr><td>Testing</td><td>Vitest (unit) + Playwright (E2E)</td></tr>
+<tr><td>Linting</td><td>ESLint 9 (flat config) + Prettier</td></tr>
+<tr><td>Container</td><td>Docker (multi-stage standalone builds)</td></tr>
+<tr><td>CI/CD</td><td>GitHub Actions</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- Architecture -->
+<section class="section">
+<h2 class="section-title"><span class="dot" style="background:var(--green)"></span>Architecture</h2>
+<div class="flow-card">
+<h3>Data Flow — GraphQL + Code Generation</h3>
+<div class="flow-steps">
+<div class="flow-step"><span class="flow-step-label">Define operations</span> <span class="flow-step-detail">src/graphql/operation/*.graphql</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step" style="border-left-color:var(--pink)"><span class="flow-step-label">pnpm codegen</span> <span class="flow-step-detail">GraphQL Code Generator → types + React hooks</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step" style="border-left-color:var(--purple)"><span class="flow-step-label">Generated hooks</span> <span class="flow-step-detail">useProductsQuery, useAddToCartMutation, etc.</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step" style="border-left-color:var(--green)"><span class="flow-step-label">Components</span> <span class="flow-step-detail">Client components use hooks, Server components use Apollo client directly</span></div>
+</div>
+</div>
+<div class="flow-card">
+<h3>Request Flow — App Router</h3>
+<div class="flow-steps">
+<div class="flow-step"><span class="flow-step-label">Incoming Request</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step"><span class="flow-step-label">proxy.ts</span> <span class="flow-step-detail">Auth redirects, security headers (Node.js runtime)</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step"><span class="flow-step-label">Route Group Layout</span> <span class="flow-step-detail">(auth) | (shop) | (dashboard) — session check</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step"><span class="flow-step-label">Server Component</span> <span class="flow-step-detail">Fetches data via Apollo Client on server</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step"><span class="flow-step-label">Client Components</span> <span class="flow-step-detail">Interactive UI with generated Apollo hooks</span></div>
+</div>
+</div>
+</section>
+
+<!-- Interactive Tree -->
+<section class="section">
+<h2 class="section-title"><span class="dot" style="background:var(--purple)"></span>Directory Structure</h2>
+<div class="tree-container">
+<div class="tree-header">
+<span class="tree-header-title"><span>📁</span> my-enterprise-app/</span>
+<div class="tree-actions">
+<button class="tree-btn" onclick="expandAll()">Expand All</button>
+<button class="tree-btn" onclick="collapseAll()">Collapse All</button>
+</div>
+</div>
+<div class="filter-bar" id="filter-bar"></div>
+<div class="search-box">
+<input type="text" class="search-input" placeholder="Search files and descriptions..." oninput="filterTree(this.value)">
+</div>
+<div class="tree-content" id="tree-root"></div>
+</div>
+</section>
+
+<!-- Scripts -->
+<section class="section">
+<h2 class="section-title"><span class="dot" style="background:var(--cyan)"></span>Scripts</h2>
+<div class="code-block"><span class="hl-comment"># Development</span>
+<span class="hl-cmd">pnpm dev</span>                <span class="hl-comment"># Start dev server at localhost:3000</span>
+<span class="hl-cmd">pnpm codegen:watch</span>      <span class="hl-comment"># Auto-regenerate GraphQL types on change</span>
+
+<span class="hl-comment"># GraphQL</span>
+<span class="hl-cmd">pnpm codegen</span>            <span class="hl-comment"># Generate types & hooks from GraphQL schema</span>
+
+<span class="hl-comment"># Quality</span>
+<span class="hl-cmd">pnpm lint</span>               <span class="hl-comment"># ESLint (flat config)</span>
+<span class="hl-cmd">pnpm type-check</span>         <span class="hl-comment"># TypeScript compiler check</span>
+
+<span class="hl-comment"># Testing</span>
+<span class="hl-cmd">pnpm test</span>               <span class="hl-comment"># Unit tests (Vitest)</span>
+<span class="hl-cmd">pnpm test:e2e</span>           <span class="hl-comment"># E2E tests (Playwright)</span>
+
+<span class="hl-comment"># Production</span>
+<span class="hl-cmd">pnpm build</span>              <span class="hl-comment"># Build for production</span>
+<span class="hl-cmd">pnpm start</span>              <span class="hl-comment"># Start production server</span>
+
+<span class="hl-comment"># Docker</span>
+<span class="hl-cmd">docker compose up</span>       <span class="hl-comment"># Local dev with Redis</span>
+<span class="hl-cmd">docker build</span> <span class="hl-flag">-f docker/Dockerfile -t myapp .</span></div>
+</section>
+
+<!-- Env -->
+<section class="section">
+<h2 class="section-title"><span class="dot" style="background:var(--yellow)"></span>Environment Variables</h2>
+<div class="code-block"><span class="hl-comment"># Auth</span>
+<span class="hl-key">AUTH_SECRET</span>=<span class="hl-val">your-secret-here</span>
+<span class="hl-key">AUTH_URL</span>=<span class="hl-val">http://localhost:3000</span>
+
+<span class="hl-comment"># GraphQL API</span>
+<span class="hl-key">NEXT_PUBLIC_API_BASEURL</span>=<span class="hl-val">http://localhost:1337/graphql</span>
+
+<span class="hl-comment"># Third-party</span>
+<span class="hl-key">STRIPE_SECRET_KEY</span>=<span class="hl-val">sk_test_...</span>
+<span class="hl-key">STRIPE_WEBHOOK_SECRET</span>=<span class="hl-val">whsec_...</span>
+<span class="hl-key">RESEND_API_KEY</span>=<span class="hl-val">re_...</span>
+
+<span class="hl-comment"># Public (baked in at build time)</span>
+<span class="hl-key">NEXT_PUBLIC_APP_URL</span>=<span class="hl-val">http://localhost:3000</span>
+<span class="hl-key">NEXT_PUBLIC_POSTHOG_KEY</span>=<span class="hl-val">phc_...</span></div>
+</section>
+
+</div>
+
+<script>
+const T=[
+{name:"src/",tag:"app",children:[
+  {name:"app/",tag:"app",children:[
+    {name:"layout.tsx",type:"page",desc:"Root layout — providers, fonts, metadata"},
+    {name:"page.tsx",type:"page",desc:"Home page (/)"},
+    {name:"not-found.tsx",type:"page",desc:"Custom 404 page"},
+    {name:"error.tsx",type:"page",desc:"Route-level error boundary"},
+    {name:"global-error.tsx",type:"page",desc:"Root layout error boundary"},
+    {name:"forbidden.tsx",type:"page",desc:"Custom 403 page (experimental: authInterrupts)"},
+    {name:"unauthorized.tsx",type:"page",desc:"Custom 401 page (experimental: authInterrupts)"},
+    {name:"loading.tsx",type:"page",desc:"Global loading UI (Suspense)"},
+    {name:"api/",tag:"api",children:[
+      {name:"health/",children:[{name:"route.ts",type:"service",desc:"Health check endpoint"}]},
+      {name:"auth/",children:[{name:"[...nextauth]/",children:[{name:"route.ts",type:"service",desc:"Auth.js v5 route handler"}]}]},
+      {name:"webhooks/",children:[
+        {name:"stripe/",children:[{name:"route.ts",type:"service",desc:"Stripe webhook handler"}]},
+        {name:"github/",children:[{name:"route.ts",type:"service",desc:"GitHub webhook handler"}]}
+      ]}
+    ]},
+    {name:"(auth)/",tag:"route-group",children:[
+      {name:"layout.tsx",type:"page",desc:"Auth layout (centered card)"},
+      {name:"login/",children:[{name:"page.tsx",type:"page",desc:"/login"}]},
+      {name:"register/",children:[{name:"page.tsx",type:"page",desc:"/register"}]}
+    ]},
+    {name:"(shop)/",tag:"ecommerce",children:[
+      {name:"layout.tsx",type:"page",desc:"Shop layout (navbar + cart + footer)"},
+      {name:"products/",children:[
+        {name:"page.tsx",type:"page",desc:"/products — product listing with filters"},
+        {name:"loading.tsx",type:"page",desc:"Skeleton grid while loading"},
+        {name:"[slug]/",children:[
+          {name:"page.tsx",type:"page",desc:"/products/:slug — product detail + SEO metadata"},
+          {name:"loading.tsx",type:"page",desc:"Skeleton detail while loading"}
+        ]}
+      ]},
+      {name:"cart/",children:[{name:"page.tsx",type:"page",desc:"/cart — shopping cart"}]},
+      {name:"checkout/",children:[{name:"page.tsx",type:"page",desc:"/checkout — checkout flow"}]}
+    ]},
+    {name:"(dashboard)/",tag:"route-group",children:[
+      {name:"layout.tsx",type:"page",desc:"Dashboard layout (sidebar + header) — server-side auth check"},
+      {name:"overview/",children:[{name:"page.tsx",type:"page",desc:"/overview"}]},
+      {name:"settings/",children:[{name:"page.tsx",type:"page",desc:"/settings"}]},
+      {name:"users/",children:[
+        {name:"page.tsx",type:"page",desc:"/users (list)"},
+        {name:"[id]/",children:[{name:"page.tsx",type:"page",desc:"/users/:id (detail) — async params"}]}
+      ]}
+    ]}
+  ]},
+  {name:"actions/",tag:"actions",children:[
+    {name:"user.actions.ts",type:"action",desc:"User create, update, delete server actions"},
+    {name:"auth.actions.ts",type:"action",desc:"Login, register, logout server actions"},
+    {name:"cart.actions.ts",type:"action",desc:"Add to cart, remove, update quantity"}
+  ]},
+  {name:"components/",tag:"components",children:[
+    {name:"ui/",children:[
+      {name:"button.tsx",type:"component",desc:"Button with variants (CVA)"},
+      {name:"button.test.tsx",type:"component",desc:"Button variants, sizes, disabled"},
+      {name:"input.tsx",type:"component",desc:"Form input component"},
+      {name:"modal.tsx",type:"component",desc:"Modal dialog"},
+      {name:"badge.tsx",type:"component",desc:"Status badges"},
+      {name:"card.tsx",type:"component",desc:"Card container"},
+      {name:"tooltip.tsx",type:"component",desc:"Tooltip overlay"},
+      {name:"toaster.tsx",type:"component",desc:"Toast notifications"},
+      {name:"index.ts",type:"util",desc:"Barrel export"}
+    ]},
+    {name:"layout/",children:[
+      {name:"sidebar.tsx",type:"component",desc:"Dashboard sidebar navigation"},
+      {name:"header.tsx",type:"component",desc:"App header with user menu"},
+      {name:"footer.tsx",type:"component",desc:"Site footer"},
+      {name:"page-container.tsx",type:"component",desc:"Page wrapper with max-width"}
+    ]},
+    {name:"auth/",children:[
+      {name:"auth-guard.tsx",type:"component",desc:"Route protection wrapper"}
+    ]},
+    {name:"product/",tag:"ecommerce",children:[
+      {name:"product-card.tsx",type:"component",desc:"Card for product grid — image, price, badges"},
+      {name:"product-card.test.tsx",type:"component",desc:"Rendering, sale badge, out of stock, links"},
+      {name:"product-grid.tsx",type:"component",desc:"Responsive product grid with empty state"},
+      {name:"product-grid.test.tsx",type:"component",desc:"Grid layout, empty state rendering"},
+      {name:"product-gallery.tsx",type:"component",desc:"Image gallery with clickable thumbnails"},
+      {name:"product-info.tsx",type:"component",desc:"Price, discount %, stock status, description"},
+      {name:"product-filters.tsx",type:"component",desc:"Category, price range, sort (URL-based)"},
+      {name:"product-filters.test.tsx",type:"component",desc:"Filter interactions, URL param updates"},
+      {name:"add-to-cart-button.tsx",type:"component",desc:"Quantity selector + useAddToCartMutation"},
+      {name:"add-to-cart-button.test.tsx",type:"component",desc:"Quantity +/-, mutation mock, disabled state"}
+    ]},
+    {name:"cart/",tag:"ecommerce",children:[
+      {name:"cart-item.tsx",type:"component",desc:"Single cart line item"},
+      {name:"cart-summary.tsx",type:"component",desc:"Subtotal, tax, total"},
+      {name:"cart-summary.test.tsx",type:"component",desc:"Subtotal, tax, total display"},
+      {name:"cart-icon.tsx",type:"component",desc:"Navbar cart icon with item count"}
+    ]},
+    {name:"forms/",children:[
+      {name:"user-form.tsx",type:"component",desc:"useActionState + useFormStatus form"},
+      {name:"login-form.tsx",type:"component",desc:"Login form with server action"},
+      {name:"settings-form.tsx",type:"component",desc:"Settings form"}
+    ]},
+    {name:"providers.tsx",type:"component",desc:"All providers: Auth + GraphQL + Theme + Toast"}
+  ]},
+  {name:"apollo/",tag:"graphql",children:[
+    {name:"client.ts",type:"graphql",desc:"Apollo Client configuration (singleton)"}
+  ]},
+  {name:"graphql/",tag:"graphql",children:[
+    {name:"GraphQlProvider.tsx",type:"graphql",desc:"ApolloProvider wrapper (use client)"},
+    {name:"generated/",children:[
+      {name:"graphql.ts",type:"graphql",desc:"Auto-generated types & hooks (do not edit)"}
+    ]},
+    {name:"operation/",children:[
+      {name:"user.graphql",type:"graphql",desc:"User queries & mutations"},
+      {name:"team.graphql",type:"graphql",desc:"Team queries & mutations"},
+      {name:"product.graphql",type:"graphql",desc:"Products, ProductBySlug, ProductCategories queries"},
+      {name:"cart.graphql",type:"graphql",desc:"Cart query, AddToCart, UpdateCartItem, RemoveFromCart"},
+      {name:"auth.graphql",type:"graphql",desc:"Auth queries & mutations"}
+    ]}
+  ]},
+  {name:"lib/",tag:"lib",children:[
+    {name:"utils.ts",type:"util",desc:"cn(), formatDate(), formatPrice(), sleep()"},
+    {name:"utils.test.ts",type:"util",desc:"cn(), formatPrice(), formatDate() tests"},
+    {name:"api-client.ts",type:"util",desc:"Type-safe fetch wrapper with auth & retries"},
+    {name:"auth.ts",type:"config",desc:"Auth.js v5 config — exports handlers, auth, signIn, signOut"},
+    {name:"validations/",children:[
+      {name:"user.ts",type:"util",desc:"User Zod schemas (create, update)"},
+      {name:"auth.ts",type:"util",desc:"Auth Zod schemas (login, register)"},
+      {name:"common.ts",type:"util",desc:"Shared schemas (pagination, search)"}
+    ]}
+  ]},
+  {name:"hooks/",tag:"hooks",children:[
+    {name:"use-debounce.ts",type:"hook",desc:"Debounce value with configurable delay"},
+    {name:"use-debounce.test.ts",type:"hook",desc:"Debounce timing with fake timers"},
+    {name:"use-media-query.ts",type:"hook",desc:"Responsive breakpoint detection"},
+    {name:"use-auth.ts",type:"hook",desc:"Auth state and session helpers"},
+    {name:"use-local-storage.ts",type:"hook",desc:"Persistent local storage state"},
+    {name:"use-local-storage.test.ts",type:"hook",desc:"Read/write/clear localStorage"}
+  ]},
+  {name:"services/",tag:"services",children:[
+    {name:"user.service.ts",type:"service",desc:"User queries via Apollo Client (server-side)"},
+    {name:"user.service.test.ts",type:"service",desc:"User service unit test"},
+    {name:"billing.service.ts",type:"service",desc:"Stripe integration"},
+    {name:"notification.service.ts",type:"service",desc:"Email, push, in-app notifications"}
+  ]},
+  {name:"stores/",tag:"stores",children:[
+    {name:"ui.store.ts",type:"store",desc:"Sidebar, theme, modals (Zustand)"},
+    {name:"ui.store.test.ts",type:"store",desc:"Sidebar toggle, theme switching"},
+    {name:"cart.store.ts",type:"store",desc:"Shopping cart ID — persisted (Zustand + persist)"},
+    {name:"cart.store.test.ts",type:"store",desc:"Cart ID persistence test"},
+    {name:"notification.store.ts",type:"store",desc:"Toast/notification queue"}
+  ]},
+  {name:"types/",tag:"types",children:[
+    {name:"api.ts",type:"util",desc:"ApiResponse<T>, ApiError interfaces"},
+    {name:"models.ts",type:"util",desc:"User, Team, Project interfaces"},
+    {name:"globals.d.ts",type:"util",desc:"Global type augmentations"}
+  ]},
+  {name:"styles/",children:[
+    {name:"globals.css",type:"config",desc:"@import 'tailwindcss', @theme config, keyframes"}
+  ]},
+  {name:"config/",tag:"config",children:[
+    {name:"site.ts",type:"config",desc:"App name, description, URLs"},
+    {name:"nav.ts",type:"config",desc:"Navigation items"},
+    {name:"env.ts",type:"config",desc:"Validated environment variables (via Zod)"}
+  ]},
+  {name:"constants/",children:[
+    {name:"roles.ts",type:"config",desc:'USER_ROLES = ["admin", "member", "viewer"]'},
+    {name:"limits.ts",type:"config",desc:"MAX_UPLOAD_SIZE, PAGINATION_LIMIT"}
+  ]},
+  {name:"proxy.ts",type:"config",desc:"Proxy — auth redirects, headers (Next.js 16, replaces middleware)"}
+]},
+{name:"public/",children:[
+  {name:"images/",desc:"Static image assets"},
+  {name:"fonts/",desc:"Custom font files"},
+  {name:"favicon.ico",type:"config"},
+  {name:"robots.txt",type:"config"},
+  {name:"sitemap.xml",type:"config"}
+]},
+{name:"tests/",tag:"testing",children:[
+  {name:"setup.ts",type:"config",desc:"Test setup — imports @testing-library/jest-dom"},
+  {name:"e2e/",children:[
+    {name:"auth.spec.ts",type:"page",desc:"Login/register E2E flow"},
+    {name:"products.spec.ts",type:"page",desc:"Product listing, filtering, detail page"},
+    {name:"cart.spec.ts",type:"page",desc:"Add to cart, update quantity, checkout"},
+    {name:"dashboard.spec.ts",type:"page",desc:"Dashboard E2E flow"}
+  ]},
+  {name:"fixtures/",children:[
+    {name:"users.ts",type:"util",desc:"Factory functions for user test data"},
+    {name:"products.ts",type:"util",desc:"createMockProduct(), createMockProductList()"},
+    {name:"teams.ts",type:"util",desc:"Team test data factories"}
+  ]}
+]},
+{name:"docs/",children:[
+  {name:"ARCHITECTURE.md",type:"util",desc:"Architecture Decision Records"},
+  {name:"API.md",type:"util",desc:"API documentation"},
+  {name:"ONBOARDING.md",type:"util",desc:"New developer guide"}
+]},
+{name:"scripts/",children:[
+  {name:"migrate.ts",type:"util",desc:"Data migration helpers"}
+]},
+{name:"docker/",tag:"devops",children:[
+  {name:"Dockerfile",type:"config",desc:"Multi-stage production build (node:22-alpine)"},
+  {name:"docker-compose.yml",type:"config",desc:"Local dev (app + Redis)"}
+]},
+{name:".github/",tag:"devops",children:[
+  {name:"workflows/",children:[
+    {name:"ci.yml",type:"config",desc:"Lint → Type-check → Test → Build"},
+    {name:"deploy.yml",type:"config",desc:"Production deployment"}
+  ]}
+]},
+{name:"next.config.ts",type:"config",desc:"Next.js config — standalone, typedRoutes, authInterrupts"},
+{name:"codegen.ts",type:"graphql",desc:"GraphQL Code Generator config"},
+{name:"vitest.config.ts",type:"config",desc:"Vitest config — jsdom, @/ paths, coverage"},
+{name:"tsconfig.json",type:"config",desc:"TypeScript config — esnext, strict, @/ alias"},
+{name:"eslint.config.mjs",type:"config",desc:"ESLint 9 flat config"},
+{name:".prettierrc",type:"config",desc:"Prettier formatting rules"},
+{name:".env.local",type:"config",desc:"Local secrets (git-ignored)"},
+{name:".env.example",type:"config",desc:"Template for new developers"},
+{name:".gitignore",type:"config"},
+{name:"package.json",type:"config",desc:"Dependencies and scripts"},
+{name:"README.md",type:"util",desc:"Project documentation"}
+];
+
+const TL={page:"Page",component:"Component",graphql:"GraphQL",config:"Config",store:"Store",action:"Action",hook:"Hook",service:"Service",util:"Util"};
+const FILTERS=["all","page","component","graphql","action","store","hook","service","config"];
+let expanded={},currentSearch="",currentFilter="all";
+
+function init(nodes,d,p){nodes.forEach(n=>{const k=p+"/"+n.name;if(n.children){expanded[k]=d<1;init(n.children,d+1,k)}})}
+init(T,0,"");
+
+function count(n,f){if(!n.children)return f?(n.type===f?1:0):1;return n.children.reduce((s,c)=>s+count(c,f),0)}
+
+function match(n,t){if(!t)return true;const l=t.toLowerCase();if(n.name.toLowerCase().includes(l))return true;if(n.desc&&n.desc.toLowerCase().includes(l))return true;if(n.tag&&n.tag.toLowerCase().includes(l))return true;if(n.children)return n.children.some(c=>match(c,l));return false}
+
+function matchFilter(n){if(currentFilter==="all")return true;if(n.children)return true;return n.type===currentFilter}
+
+function hl(text,term){if(!term)return text;const i=text.toLowerCase().indexOf(term.toLowerCase());if(i<0)return text;return text.slice(0,i)+'<span class="highlight">'+text.slice(i,i+term.length)+'</span>'+text.slice(i+term.length)}
+
+function render(){const r=document.getElementById("tree-root");r.innerHTML="";renderNodes(T,0,"",r)}
+
+function renderNodes(nodes,depth,pp,container){nodes.forEach(node=>{const path=pp+"/"+node.name;const isFolder=!!node.children;
+if(currentSearch&&!match(node,currentSearch))return;
+if(!isFolder&&!matchFilter(node))return;
+if(isFolder&&currentFilter!=="all"){let hasMatch=false;(function walk(n){if(!n.children){if(n.type===currentFilter&&(!currentSearch||match(n,currentSearch)))hasMatch=true}else n.children.forEach(walk)})(node);if(!hasMatch)return}
+const div=document.createElement("div");div.className="tree-node"+(isFolder?" folder":"");div.style.paddingLeft=(depth*20+16)+"px";
+if(isFolder)div.onclick=()=>{expanded[path]=!expanded[path];render()};
+const tog=document.createElement("span");tog.className="tree-toggle";tog.textContent=isFolder?(expanded[path]||currentSearch?"▾":"▸"):"";div.appendChild(tog);
+const ico=document.createElement("span");ico.className="tree-icon";ico.textContent=isFolder?(expanded[path]||currentSearch?"📂":"📁"):(node.type==="graphql"?"💠":node.type==="page"?"📄":node.type==="component"?"🧩":node.type==="store"?"🗄️":node.type==="hook"?"🪝":node.type==="action"?"⚡":"📄");div.appendChild(ico);
+const info=document.createElement("div");info.className="tree-info";
+const row=document.createElement("div");row.className="tree-name-row";
+const nm=document.createElement("span");nm.className="tree-name "+(isFolder?"is-folder":"is-file");nm.innerHTML=hl(node.name,currentSearch);row.appendChild(nm);
+if(node.tag){const tg=document.createElement("span");tg.className="tree-tag tag-"+node.tag.replace(/[\/\s]/g,"-");tg.textContent=node.tag;row.appendChild(tg)}
+if(!isFolder&&node.type&&TL[node.type]){const bd=document.createElement("span");bd.className="tree-type-badge type-"+node.type;bd.textContent=TL[node.type];row.appendChild(bd)}
+if(isFolder){const fc=count(node);const ct=document.createElement("span");ct.className="tree-count";ct.textContent=fc+" files";row.appendChild(ct)}
+info.appendChild(row);
+if(node.desc){const ds=document.createElement("div");ds.className="tree-desc";ds.innerHTML=hl(node.desc,currentSearch);info.appendChild(ds)}
+div.appendChild(info);container.appendChild(div);
+if(isFolder&&(expanded[path]||currentSearch))renderNodes(node.children,depth+1,path,container)})}
+
+function expandAll(){Object.keys(expanded).forEach(k=>expanded[k]=true);render()}
+function collapseAll(){Object.keys(expanded).forEach(k=>expanded[k]=false);render()}
+function filterTree(v){currentSearch=v.trim();render()}
+function setFilter(f){currentFilter=f;document.querySelectorAll(".filter-btn").forEach(b=>{b.classList.toggle("active",b.dataset.type===f)});render()}
+
+const fb=document.getElementById("filter-bar");
+FILTERS.forEach(f=>{const b=document.createElement("button");b.className="filter-btn"+(f==="all"?" active":"");b.dataset.type=f;b.textContent=f;b.onclick=()=>setFilter(f);fb.appendChild(b)});
+
+render();
+</script>
+</body>
+</html>

@@ -1,27 +1,50 @@
 # project-structure
 
-A collection of **reference project structures** for building large-scale, production-grade backend applications. Each document in this repository is a self-contained blueprint: directory layout, file responsibilities, key implementations, and the architectural reasoning behind every decision.
+A collection of **reference project structures** for building large-scale, production-grade applications. Each project includes an interactive HTML viewer and a detailed markdown blueprint covering directory layout, file responsibilities, key implementations, and architectural reasoning.
 
 The goal is not to prescribe *the one true structure*, but to provide a battle-tested starting point you can copy, adapt, and justify to your team.
 
 ---
 
+## Quick Start
+
+Open [`index.html`](./index.html) in a browser to browse all project structures via an interactive landing page.
+
+---
+
 ## Contents
 
-| Document | Stack | Summary |
-| --- | --- | --- |
-| [`nestjs-graphql-enterprise.md`](./nestjs-graphql-enterprise.md) | NestJS · GraphQL (code-first) · Apollo · TypeORM | Enterprise project layout for a NestJS application using the **code-first** GraphQL approach. Covers the full directory tree, feature-module anatomy, infrastructure libraries (`libs/`), cross-cutting concerns, key file implementations, Apollo plugin pipeline, testing strategy, and the reasoning for choosing code-first over schema-first. |
+| Project | Stack | Interactive | Docs |
+| --- | --- | --- | --- |
+| **Print Designer** | React 19 · TypeScript · Vite 6 · Fabric.js 6 · Zustand · Tailwind CSS 4 | [`View`](./projects/print-designer/index.html) | [`README`](./projects/print-designer/README.md) |
+| **NestJS Code-First GraphQL** | NestJS · GraphQL (code-first) · Apollo · TypeORM · Redis · BullMQ | [`View`](./projects/nestjs-graphql/index.html) | [`README`](./projects/nestjs-graphql/README.md) |
 
-> More stacks (Express, Fastify, tRPC, Go, Python) will be added as separate markdown files. Each will follow the same structure: **tree → module anatomy → key files → patterns → testing**.
+> More stacks will be added under `projects/`. Each will follow the same structure: **interactive HTML viewer + detailed markdown documentation**.
+
+---
+
+## Repository Structure
+
+```
+project-structure/
+├── index.html                          # Landing page — links to all projects
+├── README.md                           # This file
+└── projects/
+    ├── print-designer/
+    │   ├── index.html                  # Interactive structure viewer
+    │   └── README.md                   # Detailed markdown documentation
+    └── nestjs-graphql/
+        ├── index.html                  # Interactive structure viewer
+        └── README.md                   # Detailed markdown documentation
+```
 
 ---
 
 ## How to use this repo
 
-1. **Pick the document that matches your stack.** Every file is standalone — you do not need to read the others.
-2. **Start with the "Complete Project Tree" section.** It is the single source of truth for every folder and file, annotated with its role.
-3. **Drill into "Key File Implementations"** when you need a concrete starting point for a resolver, service, module, entity, loader, mapper, or policy.
-4. **Read the "Patterns & Decisions" section last.** It explains *why* things are structured this way so you can adapt the layout without breaking its invariants.
+1. **Open `index.html`** in a browser to see the project catalog with quick stats and tech badges.
+2. **Click a project card** to open its interactive structure viewer — searchable, filterable directory tree with descriptions for every file.
+3. **Read the `README.md`** inside each project folder for the full markdown documentation: complete project tree, key file implementations, patterns, and testing strategy.
 
 ---
 
@@ -42,10 +65,11 @@ These principles apply to every structure in this repo, regardless of language o
 
 If you want to add a reference structure for another stack:
 
-1. Create a new top-level markdown file named `<framework>-<style>.md` (e.g. `fastify-rest-enterprise.md`).
-2. Follow the section order of the existing documents: **Why this approach → Project tree → Module anatomy → Infrastructure → Key files → Patterns → Testing**.
-3. Include runnable code snippets for the most important files, not pseudo-code.
-4. Add a row to the **Contents** table above.
+1. Create a new folder under `projects/` named `<framework>-<style>` (e.g. `projects/fastify-rest/`).
+2. Add an `index.html` (interactive viewer) and `README.md` (detailed docs) inside it.
+3. Follow the section order of existing documents: **Why this approach → Project tree → Module anatomy → Infrastructure → Key files → Patterns → Testing**.
+4. Include runnable code snippets for the most important files, not pseudo-code.
+5. Add a card to `index.html` (root) and a row to the **Contents** table above.
 
 ---
 

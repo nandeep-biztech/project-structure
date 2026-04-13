@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Print Designer — Enterprise Project Structure</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0e1a;--bg-card:#111827;--bg-code:#0d1117;--bg-hover:#1e293b;--border:#1e293b;--text:#e2e8f0;--text-dim:#64748b;--text-muted:#94a3b8;--blue:#3b82f6;--purple:#8b5cf6;--green:#10b981;--yellow:#eab308;--orange:#f97316;--pink:#ec4899;--red:#f43f5e;--cyan:#06b6d4;--teal:#14b8a6}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;-webkit-font-smoothing:antialiased}
+.container{max-width:1100px;margin:0 auto;padding:40px 32px 80px}
+.header{text-align:center;padding:60px 0 48px;border-bottom:1px solid var(--border);margin-bottom:48px}
+.header h1{font-size:36px;font-weight:800;letter-spacing:-.03em;background:linear-gradient(135deg,var(--blue),var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:12px}
+.header .subtitle{font-size:15px;color:var(--text-muted)}
+.tech-stack{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:20px}
+.tech-badge{padding:4px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--border);color:var(--text-muted);background:var(--bg-card)}
+.tech-badge.primary{border-color:var(--blue);color:var(--blue);background:rgba(59,130,246,.08)}
+.stats-bar{display:flex;gap:24px;justify-content:center;flex-wrap:wrap;margin-top:24px;padding:16px;background:var(--bg-card);border-radius:10px;border:1px solid var(--border)}
+.stat{text-align:center}
+.stat-value{font-size:28px;font-weight:800;letter-spacing:-.03em}
+.stat-label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.section{margin-bottom:48px}
+.section-title{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid var(--border);display:flex;align-items:center;gap:10px}
+.section-title .dot{width:8px;height:8px;border-radius:50%;background:var(--blue)}
+table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:14px}
+th{text-align:left;padding:10px 16px;background:var(--bg-card);border:1px solid var(--border);font-weight:600;color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+td{padding:10px 16px;border:1px solid var(--border);color:var(--text)}
+td:first-child{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--blue);white-space:nowrap}
+tr:hover td{background:rgba(30,41,59,.4)}
+.tree-container{background:var(--bg-code);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.tree-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;background:var(--bg-card);border-bottom:1px solid var(--border)}
+.tree-header-title{font-size:13px;font-weight:600;color:var(--text-muted);display:flex;align-items:center;gap:8px}
+.tree-actions{display:flex;gap:8px}
+.tree-btn{padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:0 0;color:var(--text-muted);font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s}
+.tree-btn:hover{background:var(--bg-hover);color:var(--text);border-color:var(--text-dim)}
+.filter-bar{padding:10px 20px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.filter-btn{padding:3px 10px;font-size:11px;font-weight:500;border-radius:4px;cursor:pointer;font-family:inherit;transition:all .15s;text-transform:capitalize;border:1px solid rgba(148,163,184,.15);background:0 0;color:var(--text-muted)}
+.filter-btn:hover{border-color:var(--text-dim);color:var(--text)}
+.filter-btn.active{border-color:var(--blue);color:var(--blue);background:rgba(59,130,246,.1)}
+.filter-btn.active[data-type="test"]{border-color:var(--orange);color:var(--orange);background:rgba(249,115,22,.1)}
+.filter-btn.active[data-type="component"]{border-color:var(--blue);color:var(--blue);background:rgba(59,130,246,.1)}
+.filter-btn.active[data-type="hook"]{border-color:var(--purple);color:var(--purple);background:rgba(168,85,247,.1)}
+.filter-btn.active[data-type="util"]{border-color:#ca8a04;color:#ca8a04;background:rgba(234,179,8,.1)}
+.filter-btn.active[data-type="service"]{border-color:var(--green);color:var(--green);background:rgba(16,185,129,.1)}
+.filter-btn.active[data-type="store"]{border-color:var(--red);color:var(--red);background:rgba(244,63,94,.1)}
+.filter-btn.active[data-type="config"]{border-color:#6b7280;color:#6b7280;background:rgba(107,114,128,.1)}
+.search-box{padding:10px 20px;border-bottom:1px solid var(--border)}
+.search-input{width:100%;padding:8px 14px;background:rgba(148,163,184,.06);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:inherit;outline:0;transition:border-color .15s}
+.search-input:focus{border-color:var(--blue)}
+.search-input::placeholder{color:var(--text-dim)}
+.tree-content{max-height:75vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.tree-content::-webkit-scrollbar{width:6px}
+.tree-content::-webkit-scrollbar-track{background:0 0}
+.tree-content::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.tree-node{display:flex;align-items:flex-start;gap:6px;padding:5px 16px;border-bottom:1px solid rgba(30,41,59,.5);cursor:default;transition:background .12s;min-height:34px}
+.tree-node:hover{background:rgba(148,163,184,.04)}
+.tree-node.folder{cursor:pointer}
+.tree-toggle{width:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding-top:3px;color:var(--text-dim);font-size:10px;user-select:none}
+.tree-icon{flex-shrink:0;padding-top:2px;font-size:14px}
+.tree-info{flex:1;min-width:0}
+.tree-name-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tree-name{font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:-.01em}
+.tree-name.is-folder{font-weight:600;color:var(--text)}
+.tree-name.is-file{font-weight:400;color:var(--text-muted)}
+.tree-name.is-test{font-weight:400;color:var(--orange)}
+.tree-tag{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:1px 7px;border-radius:4px}
+.tree-type-badge{font-size:10px;font-weight:500;padding:1px 7px;border-radius:4px}
+.tree-count{font-size:10px;color:var(--text-dim)}
+.tree-test-count{font-size:10px;color:var(--orange);background:rgba(249,115,22,.1);padding:0 5px;border-radius:3px}
+.tree-desc{font-size:11.5px;color:var(--text-dim);margin-top:2px;line-height:1.5}
+.tag-git-hooks{color:#64748b;border:1px solid #64748b40;background:#64748b15}
+.tag-ci-cd{color:#64748b;border:1px solid #64748b40;background:#64748b15}
+.tag-static{color:#94a3b8;border:1px solid #94a3b840;background:#94a3b815}
+.tag-app-shell{color:#f43f5e;border:1px solid #f43f5e40;background:#f43f5e15}
+.tag-pages{color:#e11d48;border:1px solid #e11d4840;background:#e11d4815}
+.tag-core{color:#3b82f6;border:1px solid #3b82f640;background:#3b82f615}
+.tag-feature,.tag-features{color:#8b5cf6;border:1px solid #8b5cf640;background:#8b5cf615}
+.tag-ui{color:#06b6d4;border:1px solid #06b6d440;background:#06b6d415}
+.tag-shared{color:#10b981;border:1px solid #10b98140;background:#10b98115}
+.tag-state{color:#f97316;border:1px solid #f9731640;background:#f9731615}
+.tag-services{color:#eab308;border:1px solid #eab30840;background:#eab30815}
+.tag-libraries{color:#14b8a6;border:1px solid #14b8a640;background:#14b8a615}
+.tag-types{color:#6366f1;border:1px solid #6366f140;background:#6366f115}
+.tag-styles{color:#ec4899;border:1px solid #ec489940;background:#ec489915}
+.tag-config{color:#6b7280;border:1px solid #6b728040;background:#6b728015}
+.tag-testing{color:#f97316;border:1px solid #f9731640;background:#f9731615}
+.tag-source{color:#22d3ee;border:1px solid #22d3ee40;background:#22d3ee15}
+.type-component{color:#3b82f6;background:rgba(59,130,246,.1)}
+.type-hook{color:#a855f7;background:rgba(168,85,247,.1)}
+.type-util{color:#ca8a04;background:rgba(234,179,8,.1)}
+.type-service{color:#10b981;background:rgba(16,185,129,.1)}
+.type-store{color:#f43f5e;background:rgba(244,63,94,.1)}
+.type-type{color:#6366f1;background:rgba(99,102,241,.1)}
+.type-config{color:#6b7280;background:rgba(107,114,128,.1)}
+.type-style{color:#ec4899;background:rgba(236,72,153,.1)}
+.type-test{color:#f97316;background:rgba(249,115,22,.12)}
+.type-doc{color:#14b8a6;background:rgba(20,184,166,.1)}
+.type-asset{color:#9ca3af;background:rgba(107,114,128,.1)}
+.highlight{background:#facc15;color:#000;border-radius:2px;padding:0 2px}
+.flow-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:28px;margin-bottom:24px}
+.flow-card h3{font-size:15px;font-weight:700;margin-bottom:16px}
+.flow-steps{display:flex;flex-direction:column;gap:6px;font-family:'JetBrains Mono',monospace;font-size:13px}
+.flow-step{display:flex;align-items:center;gap:12px;padding:8px 14px;border-radius:6px;background:rgba(148,163,184,.04);border-left:3px solid var(--blue)}
+.flow-arrow{color:var(--text-dim);text-align:center;font-size:12px;padding-left:20px}
+.flow-step-label{color:var(--text)}
+.flow-step-detail{color:var(--text-dim);font-size:11px}
+.code-block{background:var(--bg-code);border:1px solid var(--border);border-radius:8px;padding:20px 24px;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.8;color:var(--text-muted);overflow-x:auto;margin-bottom:24px;white-space:pre}
+.hl-comment{color:#6b7280}.hl-key{color:#3b82f6}.hl-val{color:#10b981}.hl-cmd{color:#eab308}.hl-flag{color:#a855f7}
+.testing-banner{background:linear-gradient(135deg,rgba(249,115,22,.08),rgba(234,179,8,.05));border:1px solid rgba(249,115,22,.2);border-radius:10px;padding:20px 24px;margin-bottom:32px;display:flex;align-items:flex-start;gap:14px}
+.testing-banner .icon{font-size:28px;flex-shrink:0}
+.testing-banner h3{font-size:15px;font-weight:700;color:var(--orange);margin-bottom:6px}
+.testing-banner p{font-size:13px;color:var(--text-muted);line-height:1.6}
+@media(max-width:768px){.container{padding:20px 16px 60px}.header h1{font-size:24px}.stats-bar{gap:16px}.stat-value{font-size:22px}.tree-node{padding:5px 10px}table{font-size:12px}td,th{padding:8px 10px}.flow-card{padding:16px}}
+.back-link{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:13px;font-weight:500;text-decoration:none;transition:all .15s;margin-bottom:8px}
+.back-link:hover{border-color:var(--blue);color:var(--blue);background:rgba(59,130,246,.06)}
+@media print{body{background:#fff;color:#111}.tree-container{border-color:#ddd}.tree-content{max-height:none}.tree-btn,.search-box,.filter-bar,.back-link{display:none}}
+</style>
+</head>
+<body>
+<div class="container">
+
+<a class="back-link" href="../../index.html">&larr; All Projects</a>
+
+<header class="header">
+<div style="font-size:48px;margin-bottom:16px">🖨️</div>
+<h1>Print Designer — Enterprise Project Structure</h1>
+<p class="subtitle">Web-based print designer canvas SPA — full feature scope for w2p-printerp-pod designer</p>
+<div class="tech-stack">
+<span class="tech-badge primary">React 19</span>
+<span class="tech-badge primary">TypeScript</span>
+<span class="tech-badge primary">Vite 6</span>
+<span class="tech-badge primary">Fabric.js 6</span>
+<span class="tech-badge">Zustand</span>
+<span class="tech-badge">Apollo Client</span>
+<span class="tech-badge">GraphQL Codegen</span>
+<span class="tech-badge">Tailwind CSS 4</span>
+<span class="tech-badge">Vitest</span>
+<span class="tech-badge">Playwright</span>
+</div>
+<div class="stats-bar">
+<div class="stat"><div class="stat-value" style="color:var(--blue)">60+</div><div class="stat-label">Directories</div></div>
+<div class="stat"><div class="stat-value" style="color:var(--purple)">240+</div><div class="stat-label">Total Files</div></div>
+<div class="stat"><div class="stat-value" style="color:var(--green)">120+</div><div class="stat-label">Source Files</div></div>
+<div class="stat"><div class="stat-value" style="color:var(--orange)">110+</div><div class="stat-label">Test Files</div></div>
+<div class="stat"><div class="stat-value" style="color:var(--yellow)">17</div><div class="stat-label">Feature Modules</div></div>
+</div>
+</header>
+
+<!-- Testing Strategy Banner -->
+<div class="testing-banner">
+<div class="icon">🧪</div>
+<div>
+<h3>Co-located Unit Tests — Every Source File Has a Sibling .test File</h3>
+<p>Unit tests live right next to the file they test. The <code style="color:var(--orange);background:rgba(249,115,22,.1);padding:1px 6px;border-radius:3px">__tests__/</code> directory holds only shared infrastructure (setup, mocks, fixtures) and E2E specs — never unit tests. Use the <strong style="color:var(--orange)">Test</strong> filter below to see all 110+ test files.</p>
+</div>
+</div>
+
+<!-- Testing Strategy Table -->
+<section class="section">
+<h2 class="section-title"><span class="dot" style="background:var(--orange)"></span>Testing Strategy</h2>
+<table>
+<thead><tr><th>Layer</th><th>Location</th><th>Runner</th></tr></thead>
+<tbody>
+<tr><td>Unit (components)</td><td>ComponentName.test.tsx beside source</td><td>Vitest + Testing Library</td></tr>
+<tr><td>Unit (hooks/utils)</td><td>hookName.test.ts beside source</td><td>Vitest</td></tr>
+<tr><td>Unit (store slices)</td><td>slice-name.test.ts beside source</td><td>Vitest</td></tr>
+<tr><td>Unit (services/API)</td><td>service-name.test.ts beside source (MSW)</td><td>Vitest + MSW</td></tr>
+<tr><td>Test infrastructure</td><td>src/__tests__/setup.ts, test-utils, mocks/</td><td>—</td></tr>
+<tr><td>E2E tests</td><td>src/__tests__/e2e/*.spec.ts</td><td>Playwright</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- Tech Stack -->
+<section class="section">
+<h2 class="section-title"><span class="dot"></span>Tech Stack</h2>
+<table>
+<thead><tr><th>Layer</th><th>Technology</th></tr></thead>
+<tbody>
+<tr><td>Framework</td><td>React 19 + TypeScript 5.x (strict)</td></tr>
+<tr><td>Build Tool</td><td>Vite 6</td></tr>
+<tr><td>Canvas Engine</td><td>Fabric.js 6</td></tr>
+<tr><td>State Mgmt</td><td>Zustand + Immer</td></tr>
+<tr><td>GraphQL</td><td>Apollo Client + GraphQL Code Generator</td></tr>
+<tr><td>Styling</td><td>Tailwind CSS 4</td></tr>
+<tr><td>Routing</td><td>React Router v7</td></tr>
+<tr><td>Unit Testing</td><td>Vitest + Testing Library + MSW</td></tr>
+<tr><td>E2E Testing</td><td>Playwright</td></tr>
+<tr><td>Linting</td><td>ESLint (flat config) + Prettier</td></tr>
+<tr><td>CI/CD</td><td>GitHub Actions</td></tr>
+<tr><td>Container</td><td>Docker + nginx</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- Interactive Tree -->
+<section class="section">
+<h2 class="section-title"><span class="dot" style="background:var(--purple)"></span>Directory Structure</h2>
+<div class="tree-container">
+<div class="tree-header">
+<span class="tree-header-title"><span>📁</span> print-designer/</span>
+<div class="tree-actions">
+<button class="tree-btn" onclick="expandAll()">Expand All</button>
+<button class="tree-btn" onclick="collapseAll()">Collapse All</button>
+</div>
+</div>
+<div class="filter-bar" id="filter-bar"></div>
+<div class="search-box">
+<input type="text" class="search-input" placeholder="Search files and descriptions..." oninput="filterTree(this.value)">
+</div>
+<div class="tree-content" id="tree-root"></div>
+</div>
+</section>
+
+<!-- Architecture -->
+<section class="section">
+<h2 class="section-title"><span class="dot" style="background:var(--green)"></span>Architecture Principles</h2>
+<div class="flow-card">
+<h3>1. Feature-Sliced Design</h3>
+<p style="color:var(--text-muted);font-size:14px">Each feature module is self-contained with its own components, hooks, services, utils, types, and <strong style="color:var(--orange)">tests</strong>. This enables independent development and clean code-splitting at feature boundaries.</p>
+</div>
+<div class="flow-card">
+<h3>2. Co-located Testing (Hybrid)</h3>
+<p style="color:var(--text-muted);font-size:14px">Unit tests live beside source files — impossible to miss. <code style="color:var(--cyan);background:rgba(6,182,212,.1);padding:1px 6px;border-radius:3px">__tests__/</code> holds only shared setup (MSW handlers, canvas mocks, fixtures) and Playwright E2E specs.</p>
+</div>
+<div class="flow-card">
+<h3>3. Data Flow</h3>
+<div class="flow-steps">
+<div class="flow-step"><span class="flow-step-label">User Interaction</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step"><span class="flow-step-label">Canvas Event (Fabric.js)</span> <span class="flow-step-detail">→ useCanvasEvents → Zustand Store</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step"><span class="flow-step-label">History Manager</span> <span class="flow-step-detail">diff snapshot for undo/redo</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step"><span class="flow-step-label">Properties Panel</span> <span class="flow-step-detail">← Store subscription</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step"><span class="flow-step-label">Auto-Save</span> <span class="flow-step-detail">→ designs-api → designer-backend</span></div>
+</div>
+</div>
+<div class="flow-card">
+<h3>4. Print Pipeline</h3>
+<div class="flow-steps">
+<div class="flow-step" style="border-left-color:var(--purple)"><span class="flow-step-label">Canvas State</span> <span class="flow-step-detail">Fabric.js JSON</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step" style="border-left-color:var(--purple)"><span class="flow-step-label">Preflight Checks</span> <span class="flow-step-detail">DPI, bleed, overflow</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step" style="border-left-color:var(--purple)"><span class="flow-step-label">Offscreen Render</span> <span class="flow-step-detail">300 DPI per side</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step" style="border-left-color:var(--purple)"><span class="flow-step-label">PDF Generation</span> <span class="flow-step-detail">pdf-lib, CMYK, bleed marks</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step" style="border-left-color:var(--purple)"><span class="flow-step-label">Submission API</span> <span class="flow-step-detail">→ designer-backend → Print Queue</span></div>
+</div>
+</div>
+</section>
+
+<!-- Dependencies -->
+<section class="section">
+<h2 class="section-title"><span class="dot" style="background:var(--orange)"></span>Key Dependencies</h2>
+<table>
+<thead><tr><th>Package</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td>fabric (v6)</td><td>Canvas rendering engine</td></tr>
+<tr><td>zustand</td><td>Lightweight state management</td></tr>
+<tr><td>@tanstack/react-query</td><td>Server state / API caching</td></tr>
+<tr><td>react-router (v7)</td><td>Client-side routing</td></tr>
+<tr><td>@floating-ui/react</td><td>Popover / tooltip positioning</td></tr>
+<tr><td>pdf-lib</td><td>Client-side PDF generation</td></tr>
+<tr><td>papaparse</td><td>CSV parsing for VDP</td></tr>
+<tr><td>i18next</td><td>Internationalisation</td></tr>
+<tr><td>zod</td><td>Runtime schema validation</td></tr>
+<tr><td>immer</td><td>Immutable state updates</td></tr>
+<tr><td>msw</td><td>API mocking for tests</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- Scripts -->
+<section class="section">
+<h2 class="section-title"><span class="dot" style="background:var(--cyan)"></span>Scripts</h2>
+<div class="code-block"><span class="hl-comment"># Development</span>
+<span class="hl-cmd">npm run dev</span>              <span class="hl-comment"># Vite dev server with HMR</span>
+<span class="hl-cmd">npm run dev:mock</span>         <span class="hl-comment"># Dev server with MSW mock API</span>
+
+<span class="hl-comment"># Build</span>
+<span class="hl-cmd">npm run build</span>            <span class="hl-comment"># Production build with type checking</span>
+<span class="hl-cmd">npm run preview</span>          <span class="hl-comment"># Preview production build</span>
+
+<span class="hl-comment"># Quality</span>
+<span class="hl-cmd">npm run lint</span>             <span class="hl-comment"># ESLint check</span>
+<span class="hl-cmd">npm run typecheck</span>        <span class="hl-comment"># TypeScript check (no emit)</span>
+<span class="hl-cmd">npm run format</span>           <span class="hl-comment"># Prettier format</span>
+
+<span class="hl-comment"># Testing</span>
+<span class="hl-cmd">npm run test</span>             <span class="hl-comment"># Vitest watch mode</span>
+<span class="hl-cmd">npm run test:ci</span>          <span class="hl-comment"># Single run with coverage</span>
+<span class="hl-cmd">npm run test:e2e</span>         <span class="hl-comment"># Playwright E2E</span>
+
+<span class="hl-comment"># Docker</span>
+<span class="hl-cmd">docker compose up</span>        <span class="hl-comment"># Full local env</span>
+<span class="hl-cmd">docker compose up</span> <span class="hl-flag">--build</span> <span class="hl-comment"># Rebuild and start</span></div>
+</section>
+
+<!-- Env -->
+<section class="section">
+<h2 class="section-title"><span class="dot" style="background:var(--teal)"></span>Environment Variables</h2>
+<div class="code-block"><span class="hl-comment"># .env.example</span>
+<span class="hl-key">VITE_API_BASE_URL</span>=<span class="hl-val">https://api.designer.example.com</span>
+<span class="hl-key">VITE_CDN_URL</span>=<span class="hl-val">https://cdn.designer.example.com</span>
+<span class="hl-key">VITE_WS_URL</span>=<span class="hl-val">wss://ws.designer.example.com</span>
+<span class="hl-key">VITE_AI_ENABLED</span>=<span class="hl-val">true</span>
+<span class="hl-key">VITE_MAX_UPLOAD_SIZE_MB</span>=<span class="hl-val">50</span>
+<span class="hl-key">VITE_ANALYTICS_KEY</span>=
+<span class="hl-key">VITE_SENTRY_DSN</span>=
+<span class="hl-key">VITE_FEATURE_VDP</span>=<span class="hl-val">true</span>
+<span class="hl-key">VITE_FEATURE_NAME_NUMBER</span>=<span class="hl-val">true</span>
+<span class="hl-key">VITE_FEATURE_AI_ARTWORK</span>=<span class="hl-val">true</span>
+<span class="hl-key">VITE_FEATURE_REMOVE_BG</span>=<span class="hl-val">true</span></div>
+</section>
+
+</div>
+
+<script>
+const T=[{name:".husky/",tag:"git-hooks",children:[{name:"pre-commit",type:"config",desc:"Runs lint-staged before each commit"},{name:"commit-msg",type:"config",desc:"Enforces conventional commit format"}]},{name:".github/",tag:"ci/cd",children:[{name:"workflows/",children:[{name:"ci.yml",type:"config",desc:"PR checks — lint, typecheck, unit tests, build"},{name:"deploy-staging.yml",type:"config",desc:"Auto-deploy to staging on merge to develop"},{name:"deploy-production.yml",type:"config",desc:"Manual approval deploy to production on main"},{name:"lighthouse.yml",type:"config",desc:"Performance budget checks via Lighthouse CI"}]},{name:"CODEOWNERS",type:"config",desc:"Defines ownership per directory for PR reviews"},{name:"pull_request_template.md",type:"doc",desc:"Standardised PR description template"}]},{name:"public/",tag:"static",children:[{name:"favicon.ico",type:"asset",desc:"App favicon"},{name:"manifest.json",type:"config",desc:"PWA manifest"},{name:"robots.txt",type:"config",desc:"Search engine crawl directives"}]},{name:"src/",tag:"source",children:[{name:"app/",tag:"app-shell",children:[{name:"App.tsx",type:"component",desc:"Root component — providers, error boundary, router"},{name:"App.test.tsx",type:"test",desc:"Tests provider composition, error boundary, routes"},{name:"routes.tsx",type:"component",desc:"React Router v7 route definitions (lazy-loaded)"},{name:"routes.test.tsx",type:"test",desc:"Tests route matching, lazy loading, redirects"},{name:"providers.tsx",type:"component",desc:"Composes all context providers"},{name:"global-error-boundary.tsx",type:"component",desc:"Top-level error boundary with crash reporter"},{name:"global-error-boundary.test.tsx",type:"test",desc:"Tests error catching, fallback UI, crash report"}]},{name:"pages/",tag:"pages",children:[{name:"designer/",children:[{name:"DesignerPage.tsx",type:"component",desc:"Main designer page — canvas + toolbar orchestrator"},{name:"DesignerPage.test.tsx",type:"test",desc:"Tests designer page lifecycle, layout rendering"}]},{name:"my-designs/",children:[{name:"MyDesignsPage.tsx",type:"component",desc:"Grid/list of saved designs with search & filters"},{name:"MyDesignsPage.test.tsx",type:"test",desc:"Tests listing, filtering, search, empty state"}]},{name:"submission/",children:[{name:"SubmissionPage.tsx",type:"component",desc:"Print-ready submission review, preflight, order"},{name:"SubmissionPage.test.tsx",type:"test",desc:"Tests preflight validation, proof preview, submit"}]},{name:"not-found/",children:[{name:"NotFoundPage.tsx",type:"component",desc:"404 page with navigation back to designer"},{name:"NotFoundPage.test.tsx",type:"test",desc:"Tests 404 render and navigation link"}]}]},{name:"features/",tag:"features",children:[{name:"canvas/",tag:"core",children:[{name:"components/",children:[{name:"DesignCanvas.tsx",type:"component",desc:"Fabric.js canvas wrapper — init, resize, DPI"},{name:"DesignCanvas.test.tsx",type:"test",desc:"Tests canvas init, resize, DPI scaling, cleanup"},{name:"CanvasWorkspace.tsx",type:"component",desc:"Artboard with drop zone, shortcuts"},{name:"CanvasWorkspace.test.tsx",type:"test",desc:"Tests drop zone, shortcut binding, layout"},{name:"CanvasOverlay.tsx",type:"component",desc:"Rulers, gridlines, safe-zone & bleed SVG overlay"},{name:"CanvasOverlay.test.tsx",type:"test",desc:"Tests guide positions, unit switching"},{name:"ObjectControls.tsx",type:"component",desc:"Custom control handles (rotate, resize, lock)"},{name:"ObjectControls.test.tsx",type:"test",desc:"Tests control visibility, actions, lock state"},{name:"ContextMenu.tsx",type:"component",desc:"Right-click menu: copy, paste, align, order"},{name:"ContextMenu.test.tsx",type:"test",desc:"Tests menu items, disabled states, handlers"}]},{name:"hooks/",children:[{name:"useCanvas.ts",type:"hook",desc:"Canvas instance via context; init/dispose"},{name:"useCanvas.test.ts",type:"test",desc:"Tests context provision, init/dispose lifecycle"},{name:"useCanvasEvents.ts",type:"hook",desc:"Binds Fabric.js events to store actions"},{name:"useCanvasEvents.test.ts",type:"test",desc:"Tests event binding, dispatch, cleanup"},{name:"useZoomPan.ts",type:"hook",desc:"Scroll/pinch zoom, spacebar pan, fit-to-screen"},{name:"useZoomPan.test.ts",type:"test",desc:"Tests zoom limits, pan bounds, fit calculation"},{name:"useKeyboardShortcuts.ts",type:"hook",desc:"Global & canvas-scoped shortcuts"},{name:"useKeyboardShortcuts.test.ts",type:"test",desc:"Tests shortcut map, modifiers, scope isolation"},{name:"useCanvasSync.ts",type:"hook",desc:"Two-way sync: Fabric.js ↔ Zustand"},{name:"useCanvasSync.test.ts",type:"test",desc:"Tests bidirectional sync, conflict, debounce"}]},{name:"utils/",children:[{name:"canvas-factory.ts",type:"util",desc:"Creates pre-configured Fabric.js instances"},{name:"canvas-factory.test.ts",type:"test",desc:"Tests factory config, defaults"},{name:"coordinate-utils.ts",type:"util",desc:"px↔mm↔in conversion, DPI mapping"},{name:"coordinate-utils.test.ts",type:"test",desc:"Tests conversions, DPI scaling, edge cases"},{name:"object-serializer.ts",type:"util",desc:"Custom toJSON/fromJSON for all types"},{name:"object-serializer.test.ts",type:"test",desc:"Tests round-trip serialization per type"},{name:"render-pipeline.ts",type:"util",desc:"Offscreen 300 DPI render for print"},{name:"render-pipeline.test.ts",type:"test",desc:"Tests dimensions, DPI, memory cleanup"},{name:"hit-testing.ts",type:"util",desc:"Hit-test for shapes & groups"},{name:"hit-testing.test.ts",type:"test",desc:"Tests detection: shapes, groups, rotation"}]},{name:"constants.ts",type:"config",desc:"Canvas defaults: DPI, zoom, grid, min size"}]},{name:"multi-side/",tag:"core",children:[{name:"components/",children:[{name:"SideNavigator.tsx",type:"component",desc:"Thumbnail strip of all product sides"},{name:"SideNavigator.test.tsx",type:"test",desc:"Tests switching, thumbnails, active state"},{name:"SidePreview.tsx",type:"component",desc:"Live thumbnail via offscreen canvas"},{name:"SidePreview.test.tsx",type:"test",desc:"Tests offscreen render, preview update"}]},{name:"hooks/",children:[{name:"useProductSides.ts",type:"hook",desc:"Side definitions, active side state"},{name:"useProductSides.test.ts",type:"test",desc:"Tests side CRUD, switching, persistence"}]},{name:"types.ts",type:"type",desc:"ProductSide, SideConfig, SideCanvasState"}]},{name:"templates/",tag:"feature",children:[{name:"components/",children:[{name:"TemplateGallery.tsx",type:"component",desc:"Browsable/searchable template gallery"},{name:"TemplateGallery.test.tsx",type:"test",desc:"Tests search, categories, loading"},{name:"TemplatePreviewCard.tsx",type:"component",desc:"Template thumbnail with apply button"},{name:"TemplatePreviewCard.test.tsx",type:"test",desc:"Tests card render, apply, hover"},{name:"TemplateLayerLock.tsx",type:"component",desc:"Locked vs editable layer indicator"},{name:"TemplateLayerLock.test.tsx",type:"test",desc:"Tests lock icon, edit restriction"}]},{name:"hooks/",children:[{name:"useTemplates.ts",type:"hook",desc:"Fetch, apply, manage locked layers"},{name:"useTemplates.test.ts",type:"test",desc:"Tests fetch, apply, lock, errors"}]},{name:"services/",children:[{name:"template-api.ts",type:"service",desc:"API client for template CRUD"},{name:"template-api.test.ts",type:"test",desc:"Tests API calls, payloads (MSW)"},{name:"template-parser.ts",type:"util",desc:"Template JSON → Fabric.js objects"},{name:"template-parser.test.ts",type:"test",desc:"Tests parsing, creation, lock metadata"}]}]},{name:"text-tool/",tag:"feature",children:[{name:"components/",children:[{name:"TextToolbar.tsx",type:"component",desc:"Font, size, weight, alignment toolbar"},{name:"TextToolbar.test.tsx",type:"test",desc:"Tests rendering, font change, alignment"},{name:"FontPicker.tsx",type:"component",desc:"Searchable font browser with preview"},{name:"FontPicker.test.tsx",type:"test",desc:"Tests search, selection, lazy load"},{name:"TextEffectsPanel.tsx",type:"component",desc:"Curved, outline, shadow, gradient"},{name:"TextEffectsPanel.test.tsx",type:"test",desc:"Tests effect toggle, sliders, preview"},{name:"InlineTextEditor.tsx",type:"component",desc:"On-canvas editing with cursor, IME"},{name:"InlineTextEditor.test.tsx",type:"test",desc:"Tests text input, cursor, IME"}]},{name:"hooks/",children:[{name:"useTextTool.ts",type:"hook",desc:"Add/edit text, apply formatting"},{name:"useTextTool.test.ts",type:"test",desc:"Tests creation, formatting, edit mode"},{name:"useFontLoader.ts",type:"hook",desc:"Async font loading with FontFace API"},{name:"useFontLoader.test.ts",type:"test",desc:"Tests load, cache hit, fallback"}]},{name:"utils/",children:[{name:"text-effects.ts",type:"util",desc:"Arc/wave text, outlines, gradients"},{name:"text-effects.test.ts",type:"test",desc:"Tests arc calc, outline, gradient"},{name:"font-registry.ts",type:"util",desc:"Font catalog with metadata"},{name:"font-registry.test.ts",type:"test",desc:"Tests lookup, category, weights"}]}]},{name:"image-upload/",tag:"feature",children:[{name:"components/",children:[{name:"ImageUploader.tsx",type:"component",desc:"Drag-drop / file-picker with progress"},{name:"ImageUploader.test.tsx",type:"test",desc:"Tests drag-drop, validation, progress"},{name:"ImageCropper.tsx",type:"component",desc:"Crop/rotate modal"},{name:"ImageCropper.test.tsx",type:"test",desc:"Tests crop area, rotation, aspect lock"},{name:"ImageFilters.tsx",type:"component",desc:"Brightness, contrast, saturation"},{name:"ImageFilters.test.tsx",type:"test",desc:"Tests sliders, reset, live preview"}]},{name:"hooks/",children:[{name:"useImageUpload.ts",type:"hook",desc:"Validation, compression, CDN upload"},{name:"useImageUpload.test.ts",type:"test",desc:"Tests validation, compression, upload"}]},{name:"utils/",children:[{name:"image-processor.ts",type:"util",desc:"Resize, EXIF rotation, format convert"},{name:"image-processor.test.ts",type:"test",desc:"Tests resize, EXIF, format"},{name:"dpi-checker.ts",type:"util",desc:"Effective DPI at print size"},{name:"dpi-checker.test.ts",type:"test",desc:"Tests DPI calc, threshold warnings"}]}]},{name:"clipart/",tag:"feature",children:[{name:"components/",children:[{name:"ClipartBrowser.tsx",type:"component",desc:"Category tree + search with virtual grid"},{name:"ClipartBrowser.test.tsx",type:"test",desc:"Tests categories, search, virtual scroll"},{name:"ClipartCard.tsx",type:"component",desc:"Lazy thumbnail with drag/click-to-add"},{name:"ClipartCard.test.tsx",type:"test",desc:"Tests lazy load, drag data, click"}]},{name:"hooks/",children:[{name:"useClipart.ts",type:"hook",desc:"Paginated fetch, category, search"},{name:"useClipart.test.ts",type:"test",desc:"Tests pagination, filter, debounce"}]},{name:"services/",children:[{name:"clipart-api.ts",type:"service",desc:"API for search, categories, SVG/PNG"},{name:"clipart-api.test.ts",type:"test",desc:"Tests endpoints, params (MSW)"}]}]},{name:"backgrounds/",tag:"feature",children:[{name:"components/",children:[{name:"BackgroundPanel.tsx",type:"component",desc:"Solid, gradient, pattern, image picker"},{name:"BackgroundPanel.test.tsx",type:"test",desc:"Tests tabs, color/gradient apply"},{name:"BackgroundImageBrowser.tsx",type:"component",desc:"Browse/search background images"},{name:"BackgroundImageBrowser.test.tsx",type:"test",desc:"Tests grid, search, selection"}]},{name:"hooks/",children:[{name:"useBackground.ts",type:"hook",desc:"Set background, tiling & fit modes"},{name:"useBackground.test.ts",type:"test",desc:"Tests solid/gradient/image, fit modes"}]}]},{name:"color-picker/",tag:"feature",children:[{name:"components/",children:[{name:"ColorPicker.tsx",type:"component",desc:"Wheel, sliders, hex/RGB/CMYK"},{name:"ColorPicker.test.tsx",type:"test",desc:"Tests wheel, sliders, hex input"},{name:"SwatchPalette.tsx",type:"component",desc:"Preset palettes, recent, brand"},{name:"SwatchPalette.test.tsx",type:"test",desc:"Tests palette, recent tracking"},{name:"GradientEditor.tsx",type:"component",desc:"Linear/radial with stop editor"},{name:"GradientEditor.test.tsx",type:"test",desc:"Tests stop add/remove, type toggle"}]},{name:"hooks/",children:[{name:"useColorPicker.ts",type:"hook",desc:"Color state, format, CMYK"},{name:"useColorPicker.test.ts",type:"test",desc:"Tests state, format sync, CMYK"}]},{name:"utils/",children:[{name:"color-conversions.ts",type:"util",desc:"RGB↔CMYK↔HSL↔HEX, gamut"},{name:"color-conversions.test.ts",type:"test",desc:"Tests all conversions, edges, gamut"}]}]},{name:"shapes/",tag:"feature",children:[{name:"components/",children:[{name:"ShapesPanel.tsx",type:"component",desc:"Shape grid: basic, arrows, callouts"},{name:"ShapesPanel.test.tsx",type:"test",desc:"Tests grid, categories, insert"},{name:"ShapeProperties.tsx",type:"component",desc:"Fill, stroke, radius, opacity"},{name:"ShapeProperties.test.tsx",type:"test",desc:"Tests controls, value sync"}]},{name:"hooks/",children:[{name:"useShapes.ts",type:"hook",desc:"Insert, edit path, stroke↔fill"},{name:"useShapes.test.ts",type:"test",desc:"Tests insertion, path, conversion"}]},{name:"data/",children:[{name:"shape-library.ts",type:"config",desc:"SVG paths for built-in shapes"}]}]},{name:"name-number/",tag:"feature",children:[{name:"components/",children:[{name:"NameNumberPanel.tsx",type:"component",desc:"Bulk name/number entry grid"},{name:"NameNumberPanel.test.tsx",type:"test",desc:"Tests grid, row CRUD, validation"},{name:"NameNumberPreview.tsx",type:"component",desc:"Live preview cycling roster"},{name:"NameNumberPreview.test.tsx",type:"test",desc:"Tests cycling, canvas update"},{name:"RosterImport.tsx",type:"component",desc:"CSV/Excel upload with mapping"},{name:"RosterImport.test.tsx",type:"test",desc:"Tests upload, column detect, mapping"}]},{name:"hooks/",children:[{name:"useNameNumber.ts",type:"hook",desc:"Roster state, binding, batch export"},{name:"useNameNumber.test.ts",type:"test",desc:"Tests CRUD, binding, export"}]},{name:"types.ts",type:"type",desc:"RosterEntry, NameNumberConfig"}]},{name:"vdp/",tag:"feature",children:[{name:"components/",children:[{name:"VdpPanel.tsx",type:"component",desc:"CSV upload, field mapping, placeholders"},{name:"VdpPanel.test.tsx",type:"test",desc:"Tests upload, field list, placeholder"},{name:"VdpFieldMapper.tsx",type:"component",desc:"Map CSV columns → placeholders"},{name:"VdpFieldMapper.test.tsx",type:"test",desc:"Tests dropdown, mapping, warning"},{name:"VdpRecordNavigator.tsx",type:"component",desc:"Paginate records with live preview"},{name:"VdpRecordNavigator.test.tsx",type:"test",desc:"Tests prev/next, count, swap"},{name:"VdpBatchPreview.tsx",type:"component",desc:"Thumbnail grid of all records"},{name:"VdpBatchPreview.test.tsx",type:"test",desc:"Tests grid, thumbnails, scroll"}]},{name:"hooks/",children:[{name:"useVdp.ts",type:"hook",desc:"CSV parse, records, substitution"},{name:"useVdp.test.ts",type:"test",desc:"Tests parsing, nav, resolution"}]},{name:"utils/",children:[{name:"csv-parser.ts",type:"util",desc:"CSV parser: encoding, delimiters"},{name:"csv-parser.test.ts",type:"test",desc:"Tests delimiters, encoding, malformed"},{name:"placeholder-engine.ts",type:"util",desc:"Resolves {{field}} per record"},{name:"placeholder-engine.test.ts",type:"test",desc:"Tests matching, nested, fallback"}]}]},{name:"rulers-grid/",tag:"feature",children:[{name:"components/",children:[{name:"Ruler.tsx",type:"component",desc:"H/V rulers with tick marks, units"},{name:"Ruler.test.tsx",type:"test",desc:"Tests ticks, unit switch, zoom"},{name:"GridOverlay.tsx",type:"component",desc:"Grid with snap, adjustable spacing"},{name:"GridOverlay.test.tsx",type:"test",desc:"Tests grid lines, spacing, snap"},{name:"GuideLines.tsx",type:"component",desc:"Draggable guide lines from rulers"},{name:"GuideLines.test.tsx",type:"test",desc:"Tests guide create, drag, delete"}]},{name:"hooks/",children:[{name:"useRulers.ts",type:"hook",desc:"Unit toggle, guides, snap"},{name:"useRulers.test.ts",type:"test",desc:"Tests unit toggle, CRUD, snap calc"}]}]},{name:"history/",tag:"core",children:[{name:"hooks/",children:[{name:"useHistory.ts",type:"hook",desc:"Undo/redo with debounced snapshots"},{name:"useHistory.test.ts",type:"test",desc:"Tests traversal, max depth, debounce"}]},{name:"utils/",children:[{name:"history-manager.ts",type:"util",desc:"Command pattern: diffs, coalesce"},{name:"history-manager.test.ts",type:"test",desc:"Tests diff, coalesce, stack limits"},{name:"state-differ.ts",type:"util",desc:"JSON-patch diffing for history"},{name:"state-differ.test.ts",type:"test",desc:"Tests diff gen, patch, round-trip"}]}]},{name:"submission/",tag:"feature",children:[{name:"components/",children:[{name:"PreflightChecks.tsx",type:"component",desc:"Validates DPI, bleed, overflow, colour"},{name:"PreflightChecks.test.tsx",type:"test",desc:"Tests rules pass/fail, warning, block"},{name:"SubmissionReview.tsx",type:"component",desc:"Proof preview with approve/reject"},{name:"SubmissionReview.test.tsx",type:"test",desc:"Tests proof, approve/reject, state"},{name:"PrintJobForm.tsx",type:"component",desc:"Quantity, material, finishing"},{name:"PrintJobForm.test.tsx",type:"test",desc:"Tests validation, selection, payload"}]},{name:"hooks/",children:[{name:"useSubmission.ts",type:"hook",desc:"Preflight, PDF trigger, API submit"},{name:"useSubmission.test.ts",type:"test",desc:"Tests preflight, PDF, API, errors"}]},{name:"services/",children:[{name:"submission-api.ts",type:"service",desc:"POST print job to backend"},{name:"submission-api.test.ts",type:"test",desc:"Tests POST, auth, retry (MSW)"},{name:"pdf-exporter.ts",type:"util",desc:"300 DPI PDF with bleed, CMYK"},{name:"pdf-exporter.test.ts",type:"test",desc:"Tests pages, DPI, bleeds, fonts"}]}]},{name:"my-designs/",tag:"feature",children:[{name:"components/",children:[{name:"DesignGrid.tsx",type:"component",desc:"Responsive grid of saved designs"},{name:"DesignGrid.test.tsx",type:"test",desc:"Tests layout, responsive, actions"},{name:"DesignCard.tsx",type:"component",desc:"Card: load, duplicate, rename, delete"},{name:"DesignCard.test.tsx",type:"test",desc:"Tests actions, rename, confirm"},{name:"AutoSaveIndicator.tsx",type:"component",desc:"Auto-save status display"},{name:"AutoSaveIndicator.test.tsx",type:"test",desc:"Tests status transitions, conflict"}]},{name:"hooks/",children:[{name:"useMyDesigns.ts",type:"hook",desc:"Design CRUD, auto-save, conflict"},{name:"useMyDesigns.test.ts",type:"test",desc:"Tests CRUD, optimistic, conflict"},{name:"useAutoSave.ts",type:"hook",desc:"Periodic & on-change save, dirty"},{name:"useAutoSave.test.ts",type:"test",desc:"Tests periodic, dirty, debounce"}]},{name:"services/",children:[{name:"designs-api.ts",type:"service",desc:"REST client for design endpoints"},{name:"designs-api.test.ts",type:"test",desc:"Tests REST endpoints (MSW)"}]}]},{name:"ai/",tag:"feature",children:[{name:"components/",children:[{name:"AiArtworkPanel.tsx",type:"component",desc:"Prompt, style selector, preview, place"},{name:"AiArtworkPanel.test.tsx",type:"test",desc:"Tests prompt, style, generation, place"},{name:"AiTextArtPanel.tsx",type:"component",desc:"Text-to-art: word art, calligraphy"},{name:"AiTextArtPanel.test.tsx",type:"test",desc:"Tests text input, style, generation"},{name:"RemoveBackgroundButton.tsx",type:"component",desc:"One-click BG removal, before/after"},{name:"RemoveBackgroundButton.test.tsx",type:"test",desc:"Tests disabled, loading, toggle"},{name:"AiGenerationProgress.tsx",type:"component",desc:"Progress/spinner for AI tasks"},{name:"AiGenerationProgress.test.tsx",type:"test",desc:"Tests progress %, cancel, timeout"}]},{name:"hooks/",children:[{name:"useAiGeneration.ts",type:"hook",desc:"AI trigger, polling, result"},{name:"useAiGeneration.test.ts",type:"test",desc:"Tests trigger, poll, result, retry"},{name:"useRemoveBackground.ts",type:"hook",desc:"BG removal endpoint, canvas swap"},{name:"useRemoveBackground.test.ts",type:"test",desc:"Tests send, swap, rollback"}]},{name:"services/",children:[{name:"ai-api.ts",type:"service",desc:"API for generation & BG removal"},{name:"ai-api.test.ts",type:"test",desc:"Tests POST, polling GET (MSW)"}]}]},{name:"toolbar/",tag:"ui",children:[{name:"components/",children:[{name:"MainToolbar.tsx",type:"component",desc:"Top toolbar: undo, zoom, save"},{name:"MainToolbar.test.tsx",type:"test",desc:"Tests buttons, undo disabled, zoom"},{name:"LeftToolPanel.tsx",type:"component",desc:"Left sidebar: tool icons"},{name:"LeftToolPanel.test.tsx",type:"test",desc:"Tests selection, highlight, panel"},{name:"RightPropertiesPanel.tsx",type:"component",desc:"Right sidebar: object properties"},{name:"RightPropertiesPanel.test.tsx",type:"test",desc:"Tests panel switch per type, empty"},{name:"BottomStatusBar.tsx",type:"component",desc:"Status: zoom, position, size"},{name:"BottomStatusBar.test.tsx",type:"test",desc:"Tests data display, formatting"},{name:"FloatingToolbar.tsx",type:"component",desc:"Object-anchored floating toolbar"},{name:"FloatingToolbar.test.tsx",type:"test",desc:"Tests positioning, visibility"}]}]}]},{name:"shared/",tag:"shared",children:[{name:"components/",children:[{name:"ui/",children:[{name:"Button.tsx",type:"component",desc:"Base button: primary, ghost, icon"},{name:"Button.test.tsx",type:"test",desc:"Tests variants, disabled, loading"},{name:"Input.tsx",type:"component",desc:"Text input with label, error"},{name:"Input.test.tsx",type:"test",desc:"Tests change, error, prefix"},{name:"Select.tsx",type:"component",desc:"Dropdown with search, multi"},{name:"Select.test.tsx",type:"test",desc:"Tests open, search, multi-select"},{name:"Slider.tsx",type:"component",desc:"Range slider with dual-thumb"},{name:"Slider.test.tsx",type:"test",desc:"Tests drag, snap, bounds"},{name:"Modal.tsx",type:"component",desc:"Accessible modal, focus trap"},{name:"Modal.test.tsx",type:"test",desc:"Tests focus trap, ESC, a11y"},{name:"Popover.tsx",type:"component",desc:"Floating popover"},{name:"Popover.test.tsx",type:"test",desc:"Tests trigger, placement, dismiss"},{name:"Tooltip.tsx",type:"component",desc:"Accessible tooltip"},{name:"Tooltip.test.tsx",type:"test",desc:"Tests delay, placement, keyboard"},{name:"Tabs.tsx",type:"component",desc:"Tabs with lazy render"},{name:"Tabs.test.tsx",type:"test",desc:"Tests switch, lazy, arrow keys"},{name:"VirtualList.tsx",type:"component",desc:"Virtualised list"},{name:"VirtualList.test.tsx",type:"test",desc:"Tests window, scroll, recycling"},{name:"Spinner.tsx",type:"component",desc:"Loading spinner"},{name:"Spinner.test.tsx",type:"test",desc:"Tests sizes, a11y role"},{name:"Toast.tsx",type:"component",desc:"Toast notification stack"},{name:"Toast.test.tsx",type:"test",desc:"Tests show, timeout, stack"},{name:"ConfirmDialog.tsx",type:"component",desc:"Confirm/cancel dialog"},{name:"ConfirmDialog.test.tsx",type:"test",desc:"Tests callbacks, focus"}]},{name:"layout/",children:[{name:"PanelContainer.tsx",type:"component",desc:"Resizable panel shell"},{name:"PanelContainer.test.tsx",type:"test",desc:"Tests resize, min/max, collapse"},{name:"SplitPane.tsx",type:"component",desc:"Draggable split pane"},{name:"SplitPane.test.tsx",type:"test",desc:"Tests divider, proportion"},{name:"ScrollArea.tsx",type:"component",desc:"Custom scrollbar area"},{name:"ScrollArea.test.tsx",type:"test",desc:"Tests scroll, thumb, overlay"}]},{name:"feedback/",children:[{name:"ErrorBoundary.tsx",type:"component",desc:"Error boundary with retry"},{name:"ErrorBoundary.test.tsx",type:"test",desc:"Tests catch, fallback, retry"},{name:"EmptyState.tsx",type:"component",desc:"Empty state with action"},{name:"EmptyState.test.tsx",type:"test",desc:"Tests illustration, action"},{name:"ProgressBar.tsx",type:"component",desc:"Progress indicator"},{name:"ProgressBar.test.tsx",type:"test",desc:"Tests percentage, a11y"}]}]},{name:"hooks/",children:[{name:"useDebounce.ts",type:"hook",desc:"Debounced value"},{name:"useDebounce.test.ts",type:"test",desc:"Tests delay, update, cancel"},{name:"useThrottle.ts",type:"hook",desc:"Throttled callback"},{name:"useThrottle.test.ts",type:"test",desc:"Tests window, edge, cancel"},{name:"useMediaQuery.ts",type:"hook",desc:"Breakpoint detection"},{name:"useMediaQuery.test.ts",type:"test",desc:"Tests match, resize, SSR"},{name:"useClickOutside.ts",type:"hook",desc:"Click outside detection"},{name:"useClickOutside.test.ts",type:"test",desc:"Tests outside click, inside"},{name:"useDragAndDrop.ts",type:"hook",desc:"HTML5 DnD with preview"},{name:"useDragAndDrop.test.ts",type:"test",desc:"Tests drag data, drop zone"},{name:"useLocalStorage.ts",type:"hook",desc:"Typed localStorage"},{name:"useLocalStorage.test.ts",type:"test",desc:"Tests read/write, default"},{name:"useEventListener.ts",type:"hook",desc:"Safe event listener"},{name:"useEventListener.test.ts",type:"test",desc:"Tests attach, cleanup"}]}]},{name:"store/",tag:"state",children:[{name:"index.ts",type:"config",desc:"Combined store, re-exports"},{name:"slices/",children:[{name:"canvas-slice.ts",type:"store",desc:"Objects, selection, zoom, pan"},{name:"canvas-slice.test.ts",type:"test",desc:"Tests CRUD, selection, zoom, pan"},{name:"product-slice.ts",type:"store",desc:"Product config: sides, dimensions"},{name:"product-slice.test.ts",type:"test",desc:"Tests product load, dimension, bleed"},{name:"history-slice.ts",type:"store",desc:"Undo/redo stack"},{name:"history-slice.test.ts",type:"test",desc:"Tests push/undo/redo, overflow"},{name:"ui-slice.ts",type:"store",desc:"Active tool, panels, modals"},{name:"ui-slice.test.ts",type:"test",desc:"Tests tool switch, panel, modal"},{name:"design-slice.ts",type:"store",desc:"Design metadata: name, dirty"},{name:"design-slice.test.ts",type:"test",desc:"Tests metadata, dirty, timestamp"},{name:"vdp-slice.ts",type:"store",desc:"CSV data, records, mappings"},{name:"vdp-slice.test.ts",type:"test",desc:"Tests CSV load, nav, mappings"},{name:"roster-slice.ts",type:"store",desc:"Name & number roster"},{name:"roster-slice.test.ts",type:"test",desc:"Tests CRUD, bulk import, validate"}]},{name:"middleware/",children:[{name:"logger.ts",type:"util",desc:"Action logger for devtools"},{name:"logger.test.ts",type:"test",desc:"Tests format, filter, dev-only"},{name:"persist.ts",type:"util",desc:"IndexedDB persistence"},{name:"persist.test.ts",type:"test",desc:"Tests write/read, migration"},{name:"immer.ts",type:"util",desc:"Immer middleware"},{name:"immer.test.ts",type:"test",desc:"Tests draft mutation, new ref"}]}]},{name:"apollo/",tag:"graphql",children:[{name:"client.ts",type:"service",desc:"Apollo Client configuration (singleton)"}]},{name:"graphql/",tag:"graphql",children:[{name:"GraphQlProvider.tsx",type:"component",desc:"ApolloProvider wrapper"},{name:"GraphQlProvider.test.tsx",type:"test",desc:"Tests provider renders, client injection"},{name:"generated/",children:[{name:"graphql.ts",type:"type",desc:"Auto-generated types & hooks (do not edit)"}]},{name:"operation/",children:[{name:"template.graphql",type:"type",desc:"Template queries (list, detail, categories)"},{name:"design.graphql",type:"type",desc:"Design CRUD mutations, auto-save"},{name:"clipart.graphql",type:"type",desc:"Clipart search, categories"},{name:"product.graphql",type:"type",desc:"Product config, sides, dimensions"},{name:"submission.graphql",type:"type",desc:"Submit print job, preflight status"},{name:"ai.graphql",type:"type",desc:"AI generation, polling, BG removal"},{name:"user.graphql",type:"type",desc:"User profile, permissions"}]}]},{name:"services/",tag:"services",children:[{name:"api/",children:[{name:"http-client.ts",type:"service",desc:"Axios/ky with auth, retry (REST fallback)"},{name:"http-client.test.ts",type:"test",desc:"Tests base URL, auth, retry"},{name:"api-types.ts",type:"type",desc:"Shared API types"},{name:"error-handler.ts",type:"util",desc:"Error mapping to messages"},{name:"error-handler.test.ts",type:"test",desc:"Tests status→message, network"}]},{name:"auth/",children:[{name:"auth-service.ts",type:"service",desc:"JWT, refresh, session"},{name:"auth-service.test.ts",type:"test",desc:"Tests token, refresh, expiry"},{name:"auth-context.tsx",type:"component",desc:"Auth context provider"},{name:"auth-context.test.tsx",type:"test",desc:"Tests context, login/logout"}]},{name:"cdn/",children:[{name:"upload-service.ts",type:"service",desc:"Presigned URL upload"},{name:"upload-service.test.ts",type:"test",desc:"Tests presigned, upload, retry"}]},{name:"analytics/",children:[{name:"analytics-service.ts",type:"service",desc:"Event tracking"},{name:"analytics-service.test.ts",type:"test",desc:"Tests dispatch, payload, batch"},{name:"performance-monitor.ts",type:"util",desc:"Canvas FPS, memory"},{name:"performance-monitor.test.ts",type:"test",desc:"Tests FPS calc, threshold"}]},{name:"websocket/",children:[{name:"ws-client.ts",type:"service",desc:"WebSocket for sync"},{name:"ws-client.test.ts",type:"test",desc:"Tests connect, reconnect"}]}]},{name:"lib/",tag:"libraries",children:[{name:"fabric/",children:[{name:"fabric-extensions.ts",type:"util",desc:"Custom: ArcText, QRCode, Barcode"},{name:"fabric-extensions.test.ts",type:"test",desc:"Tests creation, serialization"},{name:"fabric-filters.ts",type:"util",desc:"Custom image filters"},{name:"fabric-filters.test.ts",type:"test",desc:"Tests apply, params, compose"},{name:"fabric-controls.ts",type:"util",desc:"Custom controls: icons, touch"},{name:"fabric-controls.test.ts",type:"test",desc:"Tests render, hit area, cursor"}]},{name:"pdf/",children:[{name:"pdf-generator.ts",type:"util",desc:"PDF via pdf-lib"},{name:"pdf-generator.test.ts",type:"test",desc:"Tests pages, font embed"}]},{name:"i18n/",children:[{name:"i18n.ts",type:"config",desc:"i18next init"},{name:"locales/",children:[{name:"en.json",type:"config",desc:"English"},{name:"es.json",type:"config",desc:"Spanish"}]}]}]},{name:"types/",tag:"types",children:[{name:"canvas.types.ts",type:"type",desc:"CanvasObject, CanvasState"},{name:"product.types.ts",type:"type",desc:"Product, ProductSide, Dimensions"},{name:"design.types.ts",type:"type",desc:"Design, DesignMeta"},{name:"template.types.ts",type:"type",desc:"Template, TemplateLayer"},{name:"vdp.types.ts",type:"type",desc:"VdpRecord, FieldMapping"},{name:"user.types.ts",type:"type",desc:"User, Session, Permissions"},{name:"api.types.ts",type:"type",desc:"ApiResponse<T>, PaginatedResult<T>"}]},{name:"styles/",tag:"styles",children:[{name:"globals.css",type:"style",desc:"CSS reset, custom props"},{name:"tokens.css",type:"style",desc:"Design tokens"},{name:"animations.css",type:"style",desc:"Keyframes"},{name:"tailwind.css",type:"style",desc:"Tailwind directives"}]},{name:"config/",tag:"config",children:[{name:"env.ts",type:"config",desc:"Typed env vars with zod"},{name:"env.test.ts",type:"test",desc:"Tests validation, missing, coercion"},{name:"feature-flags.ts",type:"config",desc:"Feature flags & overrides"},{name:"feature-flags.test.ts",type:"test",desc:"Tests defaults, override, reset"},{name:"print-presets.ts",type:"config",desc:"Print presets: sizes, DPI"},{name:"shortcuts.ts",type:"config",desc:"Keyboard shortcut map"}]},{name:"__tests__/",tag:"testing",children:[{name:"setup.ts",type:"test",desc:"Vitest global setup: DOM, canvas mock, MSW"},{name:"test-utils.tsx",type:"test",desc:"Custom render with providers, factories"},{name:"mocks/",children:[{name:"handlers.ts",type:"test",desc:"MSW handlers for all APIs"},{name:"server.ts",type:"test",desc:"MSW server instance"},{name:"canvas-mock.ts",type:"test",desc:"Fabric.js canvas mock"},{name:"fixtures/",children:[{name:"products.ts",type:"test",desc:"Sample product configs"},{name:"designs.ts",type:"test",desc:"Sample design JSON"},{name:"templates.ts",type:"test",desc:"Sample template data"}]}]},{name:"e2e/",children:[{name:"designer-flow.spec.ts",type:"test",desc:"Playwright: full designer flow"},{name:"vdp-flow.spec.ts",type:"test",desc:"Playwright: VDP flow"},{name:"template-flow.spec.ts",type:"test",desc:"Playwright: template flow"}]}]},{name:"main.tsx",type:"component",desc:"Entry: ReactDOM.createRoot"},{name:"vite-env.d.ts",type:"type",desc:"Vite client types"}]},{name:"package.json",type:"config",desc:"Dependencies, scripts"},{name:"codegen.ts",type:"config",desc:"GraphQL Code Generator config"},{name:"tsconfig.json",type:"config",desc:"TS strict, path aliases"},{name:"tsconfig.app.json",type:"config",desc:"App TS config"},{name:"tsconfig.node.json",type:"config",desc:"Node TS config"},{name:"vite.config.ts",type:"config",desc:"Vite: React, aliases, proxy"},{name:"vitest.config.ts",type:"config",desc:"Vitest: jsdom, coverage"},{name:"playwright.config.ts",type:"config",desc:"Playwright config"},{name:"tailwind.config.ts",type:"config",desc:"Tailwind theme"},{name:"postcss.config.js",type:"config",desc:"PostCSS plugins"},{name:"eslint.config.js",type:"config",desc:"ESLint flat config"},{name:".prettierrc",type:"config",desc:"Prettier config"},{name:".env.example",type:"config",desc:"Env template"},{name:".env.development",type:"config",desc:"Dev env defaults"},{name:".env.production",type:"config",desc:"Production env"},{name:".gitignore",type:"config",desc:"Git ignore"},{name:"Dockerfile",type:"config",desc:"Multi-stage Docker build"},{name:"docker-compose.yml",type:"config",desc:"Local dev compose"},{name:"nginx.conf",type:"config",desc:"Production nginx"},{name:"README.md",type:"doc",desc:"Project overview, setup"},{name:"ARCHITECTURE.md",type:"doc",desc:"ADRs, data flow"},{name:"CONTRIBUTING.md",type:"doc",desc:"Standards, PR process"}];
+
+const TL={component:"Component",hook:"Hook",util:"Utility",service:"Service",store:"Store",type:"Type",config:"Config",style:"Style",test:"Test",doc:"Doc",asset:"Asset"};
+const FILTERS=["all","component","hook","util","service","store","config","test"];
+let expanded={},currentSearch="",currentFilter="all";
+
+function init(nodes,d,p){nodes.forEach(n=>{const k=p+"/"+n.name;if(n.children){expanded[k]=d<1;init(n.children,d+1,k)}})}
+init(T,0,"");
+
+function count(n,f){if(!n.children)return f?(n.type===f?1:0):1;return n.children.reduce((s,c)=>s+count(c,f),0)}
+
+function match(n,t){if(!t)return true;const l=t.toLowerCase();if(n.name.toLowerCase().includes(l))return true;if(n.desc&&n.desc.toLowerCase().includes(l))return true;if(n.tag&&n.tag.toLowerCase().includes(l))return true;if(n.children)return n.children.some(c=>match(c,l));return false}
+
+function matchFilter(n){if(currentFilter==="all")return true;if(n.children)return true;return n.type===currentFilter}
+
+function hl(text,term){if(!term)return text;const i=text.toLowerCase().indexOf(term.toLowerCase());if(i<0)return text;return text.slice(0,i)+'<span class="highlight">'+text.slice(i,i+term.length)+'</span>'+text.slice(i+term.length)}
+
+function render(){const r=document.getElementById("tree-root");r.innerHTML="";renderNodes(T,0,"",r)}
+
+function renderNodes(nodes,depth,pp,container){nodes.forEach(node=>{const path=pp+"/"+node.name;const isFolder=!!node.children;
+if(currentSearch&&!match(node,currentSearch))return;
+if(!isFolder&&!matchFilter(node))return;
+if(isFolder&&currentFilter!=="all"){let hasMatch=false;(function walk(n){if(!n.children){if(n.type===currentFilter&&(!currentSearch||match(n,currentSearch)))hasMatch=true}else n.children.forEach(walk)})(node);if(!hasMatch)return}
+const div=document.createElement("div");div.className="tree-node"+(isFolder?" folder":"");div.style.paddingLeft=(depth*20+16)+"px";
+if(isFolder)div.onclick=()=>{expanded[path]=!expanded[path];render()};
+const tog=document.createElement("span");tog.className="tree-toggle";tog.textContent=isFolder?(expanded[path]||currentSearch?"▾":"▸"):"";div.appendChild(tog);
+const ico=document.createElement("span");ico.className="tree-icon";ico.textContent=isFolder?(expanded[path]||currentSearch?"📂":"📁"):(node.type==="test"?"🧪":"📄");div.appendChild(ico);
+const info=document.createElement("div");info.className="tree-info";
+const row=document.createElement("div");row.className="tree-name-row";
+const nm=document.createElement("span");nm.className="tree-name "+(isFolder?"is-folder":node.type==="test"?"is-test":"is-file");nm.innerHTML=hl(node.name,currentSearch);row.appendChild(nm);
+if(node.tag){const tg=document.createElement("span");tg.className="tree-tag tag-"+node.tag.replace(/\//g,"-");tg.textContent=node.tag;row.appendChild(tg)}
+if(!isFolder&&node.type&&TL[node.type]){const bd=document.createElement("span");bd.className="tree-type-badge type-"+node.type;bd.textContent=TL[node.type];row.appendChild(bd)}
+if(isFolder){const fc=count(node);const tc=count(node,"test");const ct=document.createElement("span");ct.className="tree-count";ct.textContent=fc+" files";row.appendChild(ct);if(tc>0){const tt=document.createElement("span");tt.className="tree-test-count";tt.textContent=tc+" tests";row.appendChild(tt)}}
+info.appendChild(row);
+if(node.desc){const ds=document.createElement("div");ds.className="tree-desc";ds.innerHTML=hl(node.desc,currentSearch);info.appendChild(ds)}
+div.appendChild(info);container.appendChild(div);
+if(isFolder&&(expanded[path]||currentSearch))renderNodes(node.children,depth+1,path,container)})}
+
+function expandAll(){Object.keys(expanded).forEach(k=>expanded[k]=true);render()}
+function collapseAll(){Object.keys(expanded).forEach(k=>expanded[k]=false);render()}
+function filterTree(v){currentSearch=v.trim();render()}
+function setFilter(f){currentFilter=f;document.querySelectorAll(".filter-btn").forEach(b=>{b.classList.toggle("active",b.dataset.type===f)});render()}
+
+// Build filter bar
+const fb=document.getElementById("filter-bar");
+FILTERS.forEach(f=>{const b=document.createElement("button");b.className="filter-btn"+(f==="all"?" active":"");b.dataset.type=f;b.textContent=f;b.onclick=()=>setFilter(f);fb.appendChild(b)});
+
+render();
+</script>
+</body>
+</html>

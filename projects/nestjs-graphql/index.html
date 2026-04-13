@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NestJS Code-First GraphQL — Enterprise Project Structure</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0e1a;--bg-card:#111827;--bg-code:#0d1117;--bg-hover:#1e293b;--border:#1e293b;--text:#e2e8f0;--text-dim:#64748b;--text-muted:#94a3b8;--blue:#3b82f6;--purple:#8b5cf6;--green:#10b981;--yellow:#eab308;--orange:#f97316;--pink:#ec4899;--red:#f43f5e;--cyan:#06b6d4;--teal:#14b8a6}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;-webkit-font-smoothing:antialiased}
+.container{max-width:1100px;margin:0 auto;padding:40px 32px 80px}
+.header{text-align:center;padding:60px 0 48px;border-bottom:1px solid var(--border);margin-bottom:48px}
+.header h1{font-size:36px;font-weight:800;letter-spacing:-.03em;background:linear-gradient(135deg,var(--blue),var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:12px}
+.header .subtitle{font-size:15px;color:var(--text-muted)}
+.tech-stack{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:20px}
+.tech-badge{padding:4px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--border);color:var(--text-muted);background:var(--bg-card)}
+.tech-badge.primary{border-color:var(--blue);color:var(--blue);background:rgba(59,130,246,.08)}
+.stats-bar{display:flex;gap:24px;justify-content:center;flex-wrap:wrap;margin-top:24px;padding:16px;background:var(--bg-card);border-radius:10px;border:1px solid var(--border)}
+.stat{text-align:center}
+.stat-value{font-size:28px;font-weight:800;letter-spacing:-.03em}
+.stat-label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.section{margin-bottom:48px}
+.section-title{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid var(--border);display:flex;align-items:center;gap:10px}
+.section-title .dot{width:8px;height:8px;border-radius:50%;background:var(--blue)}
+table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:14px}
+th{text-align:left;padding:10px 16px;background:var(--bg-card);border:1px solid var(--border);font-weight:600;color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+td{padding:10px 16px;border:1px solid var(--border);color:var(--text)}
+td:first-child{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--blue);white-space:nowrap}
+tr:hover td{background:rgba(30,41,59,.4)}
+.tree-container{background:var(--bg-code);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.tree-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;background:var(--bg-card);border-bottom:1px solid var(--border)}
+.tree-header-title{font-size:13px;font-weight:600;color:var(--text-muted);display:flex;align-items:center;gap:8px}
+.tree-actions{display:flex;gap:8px}
+.tree-btn{padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:0 0;color:var(--text-muted);font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s}
+.tree-btn:hover{background:var(--bg-hover);color:var(--text);border-color:var(--text-dim)}
+.filter-bar{padding:10px 20px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.filter-btn{padding:3px 10px;font-size:11px;font-weight:500;border-radius:4px;cursor:pointer;font-family:inherit;transition:all .15s;text-transform:capitalize;border:1px solid rgba(148,163,184,.15);background:0 0;color:var(--text-muted)}
+.filter-btn:hover{border-color:var(--text-dim);color:var(--text)}
+.filter-btn.active{border-color:var(--blue);color:var(--blue);background:rgba(59,130,246,.1)}
+.filter-btn.active[data-type="test"]{border-color:var(--orange);color:var(--orange);background:rgba(249,115,22,.1)}
+.filter-btn.active[data-type="service"]{border-color:var(--green);color:var(--green);background:rgba(16,185,129,.1)}
+.filter-btn.active[data-type="type"]{border-color:var(--purple);color:var(--purple);background:rgba(168,85,247,.1)}
+.filter-btn.active[data-type="util"]{border-color:#ca8a04;color:#ca8a04;background:rgba(234,179,8,.1)}
+.filter-btn.active[data-type="config"]{border-color:#6b7280;color:#6b7280;background:rgba(107,114,128,.1)}
+.search-box{padding:10px 20px;border-bottom:1px solid var(--border)}
+.search-input{width:100%;padding:8px 14px;background:rgba(148,163,184,.06);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:inherit;outline:0;transition:border-color .15s}
+.search-input:focus{border-color:var(--blue)}
+.search-input::placeholder{color:var(--text-dim)}
+.tree-content{max-height:75vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.tree-content::-webkit-scrollbar{width:6px}
+.tree-content::-webkit-scrollbar-track{background:0 0}
+.tree-content::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.tree-node{display:flex;align-items:flex-start;gap:6px;padding:5px 16px;border-bottom:1px solid rgba(30,41,59,.5);cursor:default;transition:background .12s;min-height:34px}
+.tree-node:hover{background:rgba(148,163,184,.04)}
+.tree-node.folder{cursor:pointer}
+.tree-toggle{width:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding-top:3px;color:var(--text-dim);font-size:10px;user-select:none}
+.tree-icon{flex-shrink:0;padding-top:2px;font-size:14px}
+.tree-info{flex:1;min-width:0}
+.tree-name-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tree-name{font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:-.01em}
+.tree-name.is-folder{font-weight:600;color:var(--text)}
+.tree-name.is-file{font-weight:400;color:var(--text-muted)}
+.tree-name.is-test{font-weight:400;color:var(--orange)}
+.tree-tag{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:1px 7px;border-radius:4px}
+.tree-type-badge{font-size:10px;font-weight:500;padding:1px 7px;border-radius:4px}
+.tree-count{font-size:10px;color:var(--text-dim)}
+.tree-test-count{font-size:10px;color:var(--orange);background:rgba(249,115,22,.1);padding:0 5px;border-radius:3px}
+.tree-desc{font-size:11.5px;color:var(--text-dim);margin-top:2px;line-height:1.5}
+.tag-modules{color:#8b5cf6;border:1px solid #8b5cf640;background:#8b5cf615}
+.tag-core{color:#3b82f6;border:1px solid #3b82f640;background:#3b82f615}
+.tag-config{color:#6b7280;border:1px solid #6b728040;background:#6b728015}
+.tag-libraries{color:#14b8a6;border:1px solid #14b8a640;background:#14b8a615}
+.tag-testing{color:#f97316;border:1px solid #f9731640;background:#f9731615}
+.tag-source{color:#22d3ee;border:1px solid #22d3ee40;background:#22d3ee15}
+.tag-ci-cd{color:#64748b;border:1px solid #64748b40;background:#64748b15}
+.tag-scripts{color:#eab308;border:1px solid #eab30840;background:#eab30815}
+.tag-health{color:#10b981;border:1px solid #10b98140;background:#10b98115}
+.tag-feature{color:#8b5cf6;border:1px solid #8b5cf640;background:#8b5cf615}
+.tag-shared{color:#10b981;border:1px solid #10b98140;background:#10b98115}
+.type-service{color:#10b981;background:rgba(16,185,129,.1)}
+.type-type{color:#6366f1;background:rgba(99,102,241,.1)}
+.type-util{color:#ca8a04;background:rgba(234,179,8,.1)}
+.type-config{color:#6b7280;background:rgba(107,114,128,.1)}
+.type-test{color:#f97316;background:rgba(249,115,22,.12)}
+.type-doc{color:#14b8a6;background:rgba(20,184,166,.1)}
+.type-asset{color:#9ca3af;background:rgba(107,114,128,.1)}
+.highlight{background:#facc15;color:#000;border-radius:2px;padding:0 2px}
+.flow-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:28px;margin-bottom:24px}
+.flow-card h3{font-size:15px;font-weight:700;margin-bottom:16px}
+.flow-steps{display:flex;flex-direction:column;gap:6px;font-family:'JetBrains Mono',monospace;font-size:13px}
+.flow-step{display:flex;align-items:center;gap:12px;padding:8px 14px;border-radius:6px;background:rgba(148,163,184,.04);border-left:3px solid var(--blue)}
+.flow-arrow{color:var(--text-dim);text-align:center;font-size:12px;padding-left:20px}
+.flow-step-label{color:var(--text)}
+.flow-step-detail{color:var(--text-dim);font-size:11px}
+.code-block{background:var(--bg-code);border:1px solid var(--border);border-radius:8px;padding:20px 24px;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.8;color:var(--text-muted);overflow-x:auto;margin-bottom:24px;white-space:pre}
+.hl-comment{color:#6b7280}.hl-key{color:#3b82f6}.hl-val{color:#10b981}.hl-cmd{color:#eab308}.hl-flag{color:#a855f7}
+.testing-banner{background:linear-gradient(135deg,rgba(249,115,22,.08),rgba(234,179,8,.05));border:1px solid rgba(249,115,22,.2);border-radius:10px;padding:20px 24px;margin-bottom:32px;display:flex;align-items:flex-start;gap:14px}
+.testing-banner .icon{font-size:28px;flex-shrink:0}
+.testing-banner h3{font-size:15px;font-weight:700;color:var(--orange);margin-bottom:6px}
+.testing-banner p{font-size:13px;color:var(--text-muted);line-height:1.6}
+@media(max-width:768px){.container{padding:20px 16px 60px}.header h1{font-size:24px}.stats-bar{gap:16px}.stat-value{font-size:22px}.tree-node{padding:5px 10px}table{font-size:12px}td,th{padding:8px 10px}.flow-card{padding:16px}}
+.back-link{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:13px;font-weight:500;text-decoration:none;transition:all .15s;margin-bottom:8px}
+.back-link:hover{border-color:var(--blue);color:var(--blue);background:rgba(59,130,246,.06)}
+@media print{body{background:#fff;color:#111}.tree-container{border-color:#ddd}.tree-content{max-height:none}.tree-btn,.search-box,.filter-bar,.back-link{display:none}}
+</style>
+</head>
+<body>
+<div class="container">
+
+<a class="back-link" href="../../index.html">&larr; All Projects</a>
+
+<header class="header">
+<div style="font-size:48px;margin-bottom:16px">🏗️</div>
+<h1>NestJS Code-First GraphQL — Enterprise Project Structure</h1>
+<p class="subtitle">A complete reference for structuring a large-scale NestJS application using the code-first GraphQL approach</p>
+<div class="tech-stack">
+<span class="tech-badge primary">NestJS</span>
+<span class="tech-badge primary">TypeScript</span>
+<span class="tech-badge primary">GraphQL</span>
+<span class="tech-badge primary">Apollo Server</span>
+<span class="tech-badge">TypeORM</span>
+<span class="tech-badge">PostgreSQL</span>
+<span class="tech-badge">Redis</span>
+<span class="tech-badge">BullMQ</span>
+<span class="tech-badge">CASL</span>
+<span class="tech-badge">Jest</span>
+<span class="tech-badge">Pino</span>
+<span class="tech-badge">OpenTelemetry</span>
+</div>
+<div class="stats-bar">
+<div class="stat"><div class="stat-value" style="color:var(--blue)">30+</div><div class="stat-label">Directories</div></div>
+<div class="stat"><div class="stat-value" style="color:var(--purple)">80+</div><div class="stat-label">Total Files</div></div>
+<div class="stat"><div class="stat-value" style="color:var(--green)">40+</div><div class="stat-label">Source Files</div></div>
+<div class="stat"><div class="stat-value" style="color:var(--orange)">30+</div><div class="stat-label">Test Files</div></div>
+<div class="stat"><div class="stat-value" style="color:var(--yellow)">3</div><div class="stat-label">Feature Modules</div></div>
+</div>
+</header>
+
+<!-- Testing Strategy Banner -->
+<div class="testing-banner">
+<div class="icon">🧪</div>
+<div>
+<h3>Co-located Module Tests — Each Feature Has Its Own __tests__/ Directory</h3>
+<p>Unit tests live in <code style="color:var(--orange);background:rgba(249,115,22,.1);padding:1px 6px;border-radius:3px">__tests__/</code> within each feature module. E2E tests live in <code style="color:var(--orange);background:rgba(249,115,22,.1);padding:1px 6px;border-radius:3px">test/e2e/</code>. The rule: <strong style="color:var(--orange)">unit tests mock everything at the boundary, E2E tests mock nothing</strong> except external services (Stripe, SendGrid, etc.).</p>
+</div>
+</div>
+
+<!-- Testing Strategy Table -->
+<section class="section">
+<h2 class="section-title"><span class="dot" style="background:var(--orange)"></span>Testing Strategy</h2>
+<table>
+<thead><tr><th>Layer</th><th>Location</th><th>Runner</th></tr></thead>
+<tbody>
+<tr><td>Unit (resolvers)</td><td>__tests__/resolver.spec.ts inside module</td><td>Jest</td></tr>
+<tr><td>Unit (services)</td><td>__tests__/service.spec.ts inside module</td><td>Jest</td></tr>
+<tr><td>Unit (repositories)</td><td>__tests__/repository.spec.ts inside module</td><td>Jest + SQLite</td></tr>
+<tr><td>Unit (loaders)</td><td>__tests__/loader.spec.ts inside module</td><td>Jest</td></tr>
+<tr><td>Unit (mappers)</td><td>__tests__/mapper.spec.ts inside module</td><td>Jest</td></tr>
+<tr><td>E2E tests</td><td>test/e2e/*.e2e-spec.ts</td><td>Jest + Supertest</td></tr>
+<tr><td>Test infrastructure</td><td>test/helpers/, test/fixtures/, test/factories/</td><td>—</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- Tech Stack -->
+<section class="section">
+<h2 class="section-title"><span class="dot"></span>Tech Stack</h2>
+<table>
+<thead><tr><th>Layer</th><th>Technology</th></tr></thead>
+<tbody>
+<tr><td>Framework</td><td>NestJS + TypeScript (strict)</td></tr>
+<tr><td>API</td><td>GraphQL (Code-First) + Apollo Server</td></tr>
+<tr><td>ORM</td><td>TypeORM + PostgreSQL</td></tr>
+<tr><td>Caching</td><td>Redis + ioredis</td></tr>
+<tr><td>Queue</td><td>BullMQ + Redis</td></tr>
+<tr><td>Auth</td><td>PassportJS + JWT + CASL</td></tr>
+<tr><td>Logging</td><td>Pino</td></tr>
+<tr><td>Telemetry</td><td>OpenTelemetry + Prometheus + Jaeger</td></tr>
+<tr><td>Testing</td><td>Jest + Supertest</td></tr>
+<tr><td>Linting</td><td>ESLint + Prettier</td></tr>
+<tr><td>Container</td><td>Docker + nginx</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- Interactive Tree -->
+<section class="section">
+<h2 class="section-title"><span class="dot" style="background:var(--purple)"></span>Directory Structure</h2>
+<div class="tree-container">
+<div class="tree-header">
+<span class="tree-header-title"><span>📁</span> my-enterprise-app/</span>
+<div class="tree-actions">
+<button class="tree-btn" onclick="expandAll()">Expand All</button>
+<button class="tree-btn" onclick="collapseAll()">Collapse All</button>
+</div>
+</div>
+<div class="filter-bar" id="filter-bar"></div>
+<div class="search-box">
+<input type="text" class="search-input" placeholder="Search files and descriptions..." oninput="filterTree(this.value)">
+</div>
+<div class="tree-content" id="tree-root"></div>
+</div>
+</section>
+
+<!-- Architecture -->
+<section class="section">
+<h2 class="section-title"><span class="dot" style="background:var(--green)"></span>Architecture Principles</h2>
+<div class="flow-card">
+<h3>1. Feature Module Architecture</h3>
+<p style="color:var(--text-muted);font-size:14px">Each module is self-contained with its own resolver, service, models, DTOs, entities, loaders, mappers, policies, and <strong style="color:var(--orange)">tests</strong>. Modules communicate through exported services and loaders — never by reaching into another module's internals.</p>
+</div>
+<div class="flow-card">
+<h3>2. Separation of Concerns — models/ vs entities/</h3>
+<p style="color:var(--text-muted);font-size:14px"><code style="color:var(--purple);background:rgba(139,92,246,.1);padding:1px 6px;border-radius:3px">models/</code> holds GraphQL <code>@ObjectType()</code> classes only. <code style="color:var(--cyan);background:rgba(6,182,212,.1);padding:1px 6px;border-radius:3px">entities/</code> holds TypeORM <code>@Entity()</code> classes only. A <code>mapper/</code> converts between the two — so a schema change never requires a DB migration and vice versa.</p>
+</div>
+<div class="flow-card">
+<h3>3. Request Flow</h3>
+<div class="flow-steps">
+<div class="flow-step"><span class="flow-step-label">GraphQL Request</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step"><span class="flow-step-label">Apollo Server</span> <span class="flow-step-detail">→ Complexity + Depth plugins</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step"><span class="flow-step-label">Auth Guard</span> <span class="flow-step-detail">JWT validation → @CurrentUser()</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step"><span class="flow-step-label">Resolver</span> <span class="flow-step-detail">@Query / @Mutation / @ResolveField</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step"><span class="flow-step-label">Service</span> <span class="flow-step-detail">Business logic + CASL authorization</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step"><span class="flow-step-label">Repository</span> <span class="flow-step-detail">TypeORM query → PostgreSQL</span></div>
+</div>
+</div>
+<div class="flow-card">
+<h3>4. Apollo Plugin Pipeline</h3>
+<div class="flow-steps">
+<div class="flow-step" style="border-left-color:var(--purple)"><span class="flow-step-label">ComplexityPlugin</span> <span class="flow-step-detail">Rejects over-budget queries</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step" style="border-left-color:var(--purple)"><span class="flow-step-label">DepthLimitPlugin</span> <span class="flow-step-detail">Max nesting depth (default: 7)</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step" style="border-left-color:var(--purple)"><span class="flow-step-label">DataloaderPlugin</span> <span class="flow-step-detail">Per-request DataLoader injection</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step" style="border-left-color:var(--purple)"><span class="flow-step-label">LoggingPlugin</span> <span class="flow-step-detail">Op name + duration + error status</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step" style="border-left-color:var(--purple)"><span class="flow-step-label">TracingPlugin</span> <span class="flow-step-detail">OpenTelemetry span per operation</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step" style="border-left-color:var(--purple)"><span class="flow-step-label">SentryPlugin</span> <span class="flow-step-detail">Captures resolver errors with context</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step" style="border-left-color:var(--purple)"><span class="flow-step-label">PersistedQueryPlugin</span> <span class="flow-step-detail">APQ — caches query documents by hash</span></div>
+</div>
+</div>
+</section>
+
+<!-- Key Dependencies -->
+<section class="section">
+<h2 class="section-title"><span class="dot" style="background:var(--orange)"></span>Key Dependencies</h2>
+<table>
+<thead><tr><th>Package</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td>@nestjs/graphql</td><td>Code-first GraphQL schema generation</td></tr>
+<tr><td>@nestjs/apollo</td><td>Apollo Server integration</td></tr>
+<tr><td>typeorm</td><td>Database ORM with migrations</td></tr>
+<tr><td>@nestjs/passport</td><td>JWT authentication strategy</td></tr>
+<tr><td>@casl/ability</td><td>Fine-grained authorization</td></tr>
+<tr><td>dataloader</td><td>N+1 query prevention</td></tr>
+<tr><td>bullmq</td><td>Background job processing</td></tr>
+<tr><td>pino</td><td>Structured JSON logging</td></tr>
+<tr><td>@opentelemetry/sdk-node</td><td>Distributed tracing</td></tr>
+<tr><td>class-validator</td><td>DTO validation decorators</td></tr>
+<tr><td>graphql-query-complexity</td><td>Query cost analysis</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- Scripts -->
+<section class="section">
+<h2 class="section-title"><span class="dot" style="background:var(--cyan)"></span>Scripts</h2>
+<div class="code-block"><span class="hl-comment"># Development</span>
+<span class="hl-cmd">npm run start:dev</span>          <span class="hl-comment"># Watch mode with hot-reload</span>
+<span class="hl-cmd">npm run start:debug</span>        <span class="hl-comment"># Debug mode with inspector</span>
+
+<span class="hl-comment"># Build</span>
+<span class="hl-cmd">npm run build</span>              <span class="hl-comment"># Production build</span>
+<span class="hl-cmd">npm run start:prod</span>         <span class="hl-comment"># Run production build</span>
+
+<span class="hl-comment"># Quality</span>
+<span class="hl-cmd">npm run lint</span>               <span class="hl-comment"># ESLint check</span>
+<span class="hl-cmd">npm run format</span>             <span class="hl-comment"># Prettier format</span>
+
+<span class="hl-comment"># Testing</span>
+<span class="hl-cmd">npm run test</span>               <span class="hl-comment"># Jest watch mode</span>
+<span class="hl-cmd">npm run test:cov</span>           <span class="hl-comment"># Single run with coverage</span>
+<span class="hl-cmd">npm run test:e2e</span>           <span class="hl-comment"># E2E tests</span>
+
+<span class="hl-comment"># Database</span>
+<span class="hl-cmd">npm run migration:run</span>      <span class="hl-comment"># Run pending migrations</span>
+<span class="hl-cmd">npm run migration:generate</span> <span class="hl-comment"># Generate migration from entities</span>
+<span class="hl-cmd">npm run seed</span>               <span class="hl-comment"># Seed database</span>
+
+<span class="hl-comment"># Docker</span>
+<span class="hl-cmd">docker compose up</span>          <span class="hl-comment"># Full local env (app + Postgres + Redis + Jaeger)</span>
+<span class="hl-cmd">docker compose up</span> <span class="hl-flag">--build</span> <span class="hl-comment"># Rebuild and start</span></div>
+</section>
+
+<!-- Env -->
+<section class="section">
+<h2 class="section-title"><span class="dot" style="background:var(--yellow)"></span>Environment Variables</h2>
+<div class="code-block"><span class="hl-comment"># App</span>
+<span class="hl-key">NODE_ENV</span>=<span class="hl-val">development</span>
+<span class="hl-key">PORT</span>=<span class="hl-val">3000</span>
+
+<span class="hl-comment"># Database</span>
+<span class="hl-key">DB_HOST</span>=<span class="hl-val">localhost</span>
+<span class="hl-key">DB_PORT</span>=<span class="hl-val">5432</span>
+<span class="hl-key">DB_NAME</span>=<span class="hl-val">myapp</span>
+<span class="hl-key">DB_USER</span>=<span class="hl-val">postgres</span>
+<span class="hl-key">DB_PASS</span>=<span class="hl-val">secret</span>
+
+<span class="hl-comment"># Redis</span>
+<span class="hl-key">REDIS_HOST</span>=<span class="hl-val">localhost</span>
+<span class="hl-key">REDIS_PORT</span>=<span class="hl-val">6379</span>
+
+<span class="hl-comment"># Auth</span>
+<span class="hl-key">JWT_SECRET</span>=<span class="hl-val">change-me-in-production</span>
+<span class="hl-key">JWT_EXPIRES_IN</span>=<span class="hl-val">7d</span>
+
+<span class="hl-comment"># GraphQL</span>
+<span class="hl-key">GQL_DEPTH_LIMIT</span>=<span class="hl-val">7</span>
+<span class="hl-key">GQL_MAX_COMPLEXITY</span>=<span class="hl-val">200</span>
+
+<span class="hl-comment"># CORS</span>
+<span class="hl-key">ALLOWED_ORIGINS</span>=<span class="hl-val">http://localhost:4200,https://myapp.com</span>
+
+<span class="hl-comment"># Telemetry</span>
+<span class="hl-key">OTEL_EXPORTER_JAEGER_ENDPOINT</span>=<span class="hl-val">http://localhost:14268/api/traces</span>
+<span class="hl-key">SENTRY_DSN</span>=<span class="hl-val">https://xxx@sentry.io/yyy</span></div>
+</section>
+
+</div>
+
+<script>
+const T=[{name:"src/",tag:"source",children:[{name:"modules/",tag:"modules",children:[{name:"users/",tag:"feature",children:[{name:"user.resolver.ts",type:"service",desc:"@Resolver(User) — queries, mutations, subscriptions"},{name:"user.service.ts",type:"service",desc:"Business logic, no GQL concerns"},{name:"user.module.ts",type:"service",desc:"NestJS module wiring"},{name:"models/",children:[{name:"user.type.ts",type:"type",desc:"@ObjectType() @Field() — GQL user type"},{name:"user-connection.type.ts",type:"type",desc:"Relay pagination connection"},{name:"user-order.enum.ts",type:"type",desc:"registerEnumType() for sort fields"}]},{name:"dto/",children:[{name:"create-user.input.ts",type:"type",desc:"@InputType() — create user input"},{name:"update-user.input.ts",type:"type",desc:"@InputType() + PartialType"},{name:"users-filter.args.ts",type:"type",desc:"@ArgsType() — filter + cursor pagination"}]},{name:"entities/",children:[{name:"user.entity.ts",type:"type",desc:"@Entity() TypeORM columns — no GQL decorators"},{name:"user.repository.ts",type:"service",desc:"Custom query methods (findPaginated, etc.)"}]},{name:"loaders/",children:[{name:"user.loader.ts",type:"service",desc:"Scope.REQUEST DataLoader — batches by ID"}]},{name:"mappers/",children:[{name:"user.mapper.ts",type:"util",desc:"entity → GQL type: toGql(), toConnection()"}]},{name:"subscribers/",children:[{name:"user-created.event.ts",type:"type",desc:"PubSub event shape for @Subscription"}]},{name:"policies/",children:[{name:"manage-user.policy.ts",type:"service",desc:"CASL rules — who can read/write/delete users"}]},{name:"__tests__/",tag:"testing",children:[{name:"user.resolver.spec.ts",type:"test",desc:"Resolver unit test — mocks UsersService"},{name:"user.service.spec.ts",type:"test",desc:"Service unit test — mocks UserRepository"},{name:"user.repository.spec.ts",type:"test",desc:"Repository unit test — uses in-memory SQLite"},{name:"user.loader.spec.ts",type:"test",desc:"DataLoader unit test — verifies batching"},{name:"user.mapper.spec.ts",type:"test",desc:"Pure function test — entity → GQL type"}]},{name:"index.ts",type:"util",desc:"Barrel re-exports"}]},{name:"posts/",tag:"feature",children:[{name:"post.resolver.ts",type:"service",desc:"@Resolver(Post) — queries, mutations"},{name:"post.service.ts",type:"service",desc:"Business logic for posts"},{name:"post.module.ts",type:"service",desc:"NestJS module wiring"},{name:"models/",children:[{name:"post.type.ts",type:"type",desc:"@ObjectType() — GQL post type"},{name:"post-connection.type.ts",type:"type",desc:"Relay pagination connection"},{name:"post-status.enum.ts",type:"type",desc:"Draft / Published / Archived"}]},{name:"dto/",children:[{name:"create-post.input.ts",type:"type",desc:"@InputType() — create post input"},{name:"update-post.input.ts",type:"type",desc:"@InputType() + PartialType"},{name:"posts-filter.args.ts",type:"type",desc:"@ArgsType() — filter + cursor pagination"}]},{name:"entities/",children:[{name:"post.entity.ts",type:"type",desc:"@Entity() TypeORM columns"},{name:"post.repository.ts",type:"service",desc:"Custom query methods (findByAuthorIds, etc.)"}]},{name:"loaders/",children:[{name:"post.loader.ts",type:"service",desc:"Loads posts grouped by authorId"}]},{name:"mappers/",children:[{name:"post.mapper.ts",type:"util",desc:"entity → GQL type conversion"}]},{name:"policies/",children:[{name:"manage-post.policy.ts",type:"service",desc:"CASL rules — who can manage posts"}]},{name:"__tests__/",tag:"testing",children:[{name:"post.resolver.spec.ts",type:"test",desc:"Resolver unit test — mocks PostsService"},{name:"post.service.spec.ts",type:"test",desc:"Service unit test — mocks PostRepository"},{name:"post.repository.spec.ts",type:"test",desc:"Repository unit test — uses SQLite"},{name:"post.loader.spec.ts",type:"test",desc:"DataLoader unit test — verifies batching"}]},{name:"index.ts",type:"util",desc:"Barrel re-exports"}]},{name:"auth/",tag:"feature",children:[{name:"auth.resolver.ts",type:"service",desc:"login(), refreshToken() mutations"},{name:"auth.service.ts",type:"service",desc:"validateCredentials(), issueJwt()"},{name:"auth.module.ts",type:"service",desc:"NestJS module wiring"},{name:"dto/",children:[{name:"login.input.ts",type:"type",desc:"@InputType() — email + password"},{name:"auth-token.type.ts",type:"type",desc:"@ObjectType() accessToken payload"}]},{name:"__tests__/",tag:"testing",children:[{name:"auth.resolver.spec.ts",type:"test",desc:"Tests login + refresh mutations"},{name:"auth.service.spec.ts",type:"test",desc:"Tests credential validation + JWT issuance"}]}]}]},{name:"common/",tag:"core",children:[{name:"decorators/",children:[{name:"current-user.decorator.ts",type:"service",desc:"@CurrentUser() — extracts user from GQL context"},{name:"roles.decorator.ts",type:"service",desc:"@Roles('admin', 'editor')"},{name:"public.decorator.ts",type:"service",desc:"@Public() — skips auth guard"},{name:"complexity.decorator.ts",type:"service",desc:"@Complexity(n) — query cost hint"}]},{name:"guards/",children:[{name:"roles.guard.ts",type:"service",desc:"Reads @Roles metadata via Reflector"},{name:"throttler-gql.guard.ts",type:"service",desc:"GQL-aware rate limit guard"}]},{name:"filters/",children:[{name:"gql-exception.filter.ts",type:"service",desc:"Maps exceptions → GQL errors"},{name:"http-exception.filter.ts",type:"service",desc:"REST health endpoint errors"}]},{name:"interceptors/",children:[{name:"logging.interceptor.ts",type:"service",desc:"Logs method + duration"},{name:"timeout.interceptor.ts",type:"service",desc:"Kills requests > N ms"}]},{name:"pipes/",children:[{name:"parse-uuid.pipe.ts",type:"service",desc:"Validates UUID format"},{name:"zod-validation.pipe.ts",type:"service",desc:"Zod schema validation pipe"}]},{name:"scalars/",children:[{name:"date.scalar.ts",type:"type",desc:"ISO 8601 ↔ Date"},{name:"json.scalar.ts",type:"type",desc:"Arbitrary JSON fields"},{name:"upload.scalar.ts",type:"type",desc:"File upload scalar"}]},{name:"plugins/",children:[{name:"complexity.plugin.ts",type:"service",desc:"Rejects over-budget queries"},{name:"depth-limit.plugin.ts",type:"service",desc:"Max nesting depth"},{name:"logging.plugin.ts",type:"service",desc:"Logs every GQL operation"},{name:"tracing.plugin.ts",type:"service",desc:"OpenTelemetry span per op"},{name:"sentry.plugin.ts",type:"service",desc:"Captures resolver errors"}]},{name:"directives/",children:[{name:"auth.directive.ts",type:"type",desc:"Schema directive for auth"}]},{name:"enums/",children:[{name:"sort-direction.enum.ts",type:"type",desc:"ASC | DESC"},{name:"action.enum.ts",type:"type",desc:"CASL actions: Create/Read/Update/Delete"}]},{name:"types/",children:[{name:"pagination.args.ts",type:"type",desc:"first, after, last, before"},{name:"page-info.type.ts",type:"type",desc:"@ObjectType() hasNextPage etc."},{name:"connection.type.ts",type:"type",desc:"Generic Connection<T>"},{name:"edge.type.ts",type:"type",desc:"Generic Edge<T>"}]}]},{name:"config/",tag:"config",children:[{name:"app.config.ts",type:"config",desc:"port, env, allowedOrigins"},{name:"database.config.ts",type:"config",desc:"host, port, name, ssl"},{name:"graphql.config.ts",type:"config",desc:"depthLimit, maxComplexity"},{name:"redis.config.ts",type:"config",desc:"host, port, ttl defaults"},{name:"queue.config.ts",type:"config",desc:"concurrency, retry, DLQ"},{name:"jwt.config.ts",type:"config",desc:"secret, expiresIn"}]},{name:"health/",tag:"health",children:[{name:"health.controller.ts",type:"service",desc:"GET /health REST endpoint"},{name:"health.module.ts",type:"service",desc:"Terminus: db + redis indicators"}]},{name:"app.module.ts",type:"service",desc:"Root — imports all modules, GraphQL config, plugins"},{name:"main.ts",type:"service",desc:"Bootstrap, helmet, cors, global pipes"}]},{name:"libs/",tag:"libraries",children:[{name:"database/",tag:"libraries",children:[{name:"database.module.ts",type:"service",desc:"TypeORM forRootAsync setup"},{name:"base.entity.ts",type:"type",desc:"id (UUID), createdAt, updatedAt, deletedAt"},{name:"transaction.service.ts",type:"service",desc:"Unit-of-work / transaction wrapper"},{name:"migrations/",children:[{name:"1700000000000-init.ts",type:"config",desc:"Timestamped migration files"}]},{name:"seeds/",children:[{name:"user.seed.ts",type:"util",desc:"Seed user data"},{name:"post.seed.ts",type:"util",desc:"Seed post data"}]}]},{name:"cache/",tag:"libraries",children:[{name:"cache.module.ts",type:"service",desc:"Global Redis module (ioredis)"},{name:"cache.service.ts",type:"service",desc:"get<T>(), set(), del(), invalidatePattern()"}]},{name:"queue/",tag:"libraries",children:[{name:"queue.module.ts",type:"service",desc:"BullMQ + Redis connection"},{name:"queue.constants.ts",type:"config",desc:"Queue name constants"},{name:"base.processor.ts",type:"service",desc:"Retry logic, DLQ, tracing"}]},{name:"logger/",tag:"libraries",children:[{name:"logger.module.ts",type:"service",desc:"Pino global registration"},{name:"logger.service.ts",type:"service",desc:"Structured logging wrapper"},{name:"gql-logger.plugin.ts",type:"service",desc:"Apollo plugin: op name + latency"}]},{name:"auth/",tag:"libraries",children:[{name:"auth.module.ts",type:"service",desc:"PassportJS + JWT global setup"},{name:"jwt.strategy.ts",type:"service",desc:"Validates Bearer, attaches user"},{name:"gql-auth.guard.ts",type:"service",desc:"Extracts GQL context (not HTTP)"},{name:"casl-ability.factory.ts",type:"service",desc:"Builds ability for a given user"},{name:"roles.guard.ts",type:"service",desc:"Checks @Roles() via Reflector"}]},{name:"telemetry/",tag:"libraries",children:[{name:"tracing.module.ts",type:"service",desc:"OpenTelemetry SDK + Jaeger exporter"},{name:"metrics.service.ts",type:"service",desc:"Prometheus counters + histograms"},{name:"tracing.plugin.ts",type:"service",desc:"Apollo plugin: span per GQL op"}]}]},{name:"test/",tag:"testing",children:[{name:"e2e/",tag:"testing",children:[{name:"users.e2e-spec.ts",type:"test",desc:"Full CRUD + auth + pagination"},{name:"posts.e2e-spec.ts",type:"test",desc:"Post CRUD + publish + authorization"},{name:"auth.e2e-spec.ts",type:"test",desc:"Login, wrong password, me query"},{name:"health.e2e-spec.ts",type:"test",desc:"/health with db + redis status"}]},{name:"helpers/",children:[{name:"gql-request.helper.ts",type:"util",desc:"Typed GQL wrapper over Supertest"},{name:"auth.helper.ts",type:"util",desc:"Gets JWT for a seeded account"}]},{name:"fixtures/",children:[{name:"user.fixture.ts",type:"util",desc:"Static test data constants"},{name:"post.fixture.ts",type:"util",desc:"Static test data constants"}]},{name:"factories/",children:[{name:"user.factory.ts",type:"util",desc:"Faker-based UserEntity builder"},{name:"post.factory.ts",type:"util",desc:"Faker-based PostEntity builder"}]}]},{name:"scripts/",tag:"scripts",children:[{name:"seed.ts",type:"util",desc:"Runs all seeds in order"},{name:"migrate.ts",type:"util",desc:"TypeORM migration runner"},{name:"codegen.ts",type:"util",desc:"GQL codegen for client consumers"}]},{name:"docker/",tag:"ci-cd",children:[{name:"Dockerfile",type:"config",desc:"Multi-stage: build → production"},{name:"compose.yml",type:"config",desc:"App + Postgres + Redis + Jaeger"},{name:"nginx.conf",type:"config",desc:"Reverse proxy + TLS termination"}]},{name:"schema.gql",type:"config",desc:"Auto-generated — do not edit"},{name:"package.json",type:"config",desc:"Dependencies and scripts"},{name:"tsconfig.json",type:"config",desc:"TypeScript compiler options"},{name:"tsconfig.paths.json",type:"config",desc:"@libs/*, @common/*, @modules/* aliases"},{name:"jest.config.ts",type:"config",desc:"Jest configuration with path mapping"},{name:".eslintrc.js",type:"config",desc:"ESLint configuration"},{name:".prettierrc",type:"config",desc:"Prettier code formatting rules"},{name:".env",type:"config",desc:"Local development environment"},{name:".env.test",type:"config",desc:"Test runner overrides"},{name:".env.prod",type:"config",desc:"Production (never commit)"}];
+
+const TL={service:"Service",type:"Type",util:"Utility",config:"Config",test:"Test",doc:"Doc",asset:"Asset"};
+const FILTERS=["all","service","type","util","config","test"];
+let expanded={},currentSearch="",currentFilter="all";
+
+function init(nodes,d,p){nodes.forEach(n=>{const k=p+"/"+n.name;if(n.children){expanded[k]=d<1;init(n.children,d+1,k)}})}
+init(T,0,"");
+
+function count(n,f){if(!n.children)return f?(n.type===f?1:0):1;return n.children.reduce((s,c)=>s+count(c,f),0)}
+
+function match(n,t){if(!t)return true;const l=t.toLowerCase();if(n.name.toLowerCase().includes(l))return true;if(n.desc&&n.desc.toLowerCase().includes(l))return true;if(n.tag&&n.tag.toLowerCase().includes(l))return true;if(n.children)return n.children.some(c=>match(c,l));return false}
+
+function matchFilter(n){if(currentFilter==="all")return true;if(n.children)return true;return n.type===currentFilter}
+
+function hl(text,term){if(!term)return text;const i=text.toLowerCase().indexOf(term.toLowerCase());if(i<0)return text;return text.slice(0,i)+'<span class="highlight">'+text.slice(i,i+term.length)+'</span>'+text.slice(i+term.length)}
+
+function render(){const r=document.getElementById("tree-root");r.innerHTML="";renderNodes(T,0,"",r)}
+
+function renderNodes(nodes,depth,pp,container){nodes.forEach(node=>{const path=pp+"/"+node.name;const isFolder=!!node.children;
+if(currentSearch&&!match(node,currentSearch))return;
+if(!isFolder&&!matchFilter(node))return;
+if(isFolder&&currentFilter!=="all"){let hasMatch=false;(function walk(n){if(!n.children){if(n.type===currentFilter&&(!currentSearch||match(n,currentSearch)))hasMatch=true}else n.children.forEach(walk)})(node);if(!hasMatch)return}
+const div=document.createElement("div");div.className="tree-node"+(isFolder?" folder":"");div.style.paddingLeft=(depth*20+16)+"px";
+if(isFolder)div.onclick=()=>{expanded[path]=!expanded[path];render()};
+const tog=document.createElement("span");tog.className="tree-toggle";tog.textContent=isFolder?(expanded[path]||currentSearch?"▾":"▸"):"";div.appendChild(tog);
+const ico=document.createElement("span");ico.className="tree-icon";ico.textContent=isFolder?(expanded[path]||currentSearch?"📂":"📁"):(node.type==="test"?"🧪":"📄");div.appendChild(ico);
+const info=document.createElement("div");info.className="tree-info";
+const row=document.createElement("div");row.className="tree-name-row";
+const nm=document.createElement("span");nm.className="tree-name "+(isFolder?"is-folder":node.type==="test"?"is-test":"is-file");nm.innerHTML=hl(node.name,currentSearch);row.appendChild(nm);
+if(node.tag){const tg=document.createElement("span");tg.className="tree-tag tag-"+node.tag.replace(/\//g,"-");tg.textContent=node.tag;row.appendChild(tg)}
+if(!isFolder&&node.type&&TL[node.type]){const bd=document.createElement("span");bd.className="tree-type-badge type-"+node.type;bd.textContent=TL[node.type];row.appendChild(bd)}
+if(isFolder){const fc=count(node);const tc=count(node,"test");const ct=document.createElement("span");ct.className="tree-count";ct.textContent=fc+" files";row.appendChild(ct);if(tc>0){const tt=document.createElement("span");tt.className="tree-test-count";tt.textContent=tc+" tests";row.appendChild(tt)}}
+info.appendChild(row);
+if(node.desc){const ds=document.createElement("div");ds.className="tree-desc";ds.innerHTML=hl(node.desc,currentSearch);info.appendChild(ds)}
+div.appendChild(info);container.appendChild(div);
+if(isFolder&&(expanded[path]||currentSearch))renderNodes(node.children,depth+1,path,container)})}
+
+function expandAll(){Object.keys(expanded).forEach(k=>expanded[k]=true);render()}
+function collapseAll(){Object.keys(expanded).forEach(k=>expanded[k]=false);render()}
+function filterTree(v){currentSearch=v.trim();render()}
+function setFilter(f){currentFilter=f;document.querySelectorAll(".filter-btn").forEach(b=>{b.classList.toggle("active",b.dataset.type===f)});render()}
+
+// Build filter bar
+const fb=document.getElementById("filter-bar");
+FILTERS.forEach(f=>{const b=document.createElement("button");b.className="filter-btn"+(f==="all"?" active":"");b.dataset.type=f;b.textContent=f;b.onclick=()=>setFilter(f);fb.appendChild(b)});
+
+render();
+</script>
+</body>
+</html>

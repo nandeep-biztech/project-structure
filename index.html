@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Enterprise Project Structures</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0e1a;--bg-card:#111827;--bg-hover:#1a2332;--border:#1e293b;--text:#e2e8f0;--text-dim:#64748b;--text-muted:#94a3b8;--blue:#3b82f6;--purple:#8b5cf6;--green:#10b981;--yellow:#eab308;--orange:#f97316;--pink:#ec4899;--red:#f43f5e;--cyan:#06b6d4;--teal:#14b8a6}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;-webkit-font-smoothing:antialiased;min-height:100vh}
+.container{max-width:960px;margin:0 auto;padding:60px 32px 80px}
+.header{text-align:center;margin-bottom:64px}
+.header h1{font-size:40px;font-weight:800;letter-spacing:-.03em;background:linear-gradient(135deg,var(--blue),var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:12px}
+.header p{font-size:16px;color:var(--text-muted);max-width:540px;margin:0 auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:24px}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:32px;text-decoration:none;color:inherit;transition:all .2s ease;display:flex;flex-direction:column;gap:20px;position:relative;overflow:hidden}
+.card:hover{border-color:var(--blue);transform:translateY(-4px);box-shadow:0 12px 40px rgba(59,130,246,.12)}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--blue),var(--purple));opacity:0;transition:opacity .2s}
+.card:hover::before{opacity:1}
+.card-icon{font-size:48px}
+.card-title{font-size:20px;font-weight:700;letter-spacing:-.02em}
+.card-desc{font-size:14px;color:var(--text-muted);line-height:1.6}
+.card-tech{display:flex;gap:6px;flex-wrap:wrap}
+.badge{padding:3px 10px;border-radius:14px;font-size:11px;font-weight:600;border:1px solid var(--border);color:var(--text-muted);background:rgba(148,163,184,.05)}
+.badge.primary{border-color:var(--blue);color:var(--blue);background:rgba(59,130,246,.08)}
+.card-stats{display:flex;gap:20px;padding-top:16px;border-top:1px solid var(--border)}
+.card-stat{text-align:center}
+.card-stat-value{font-size:22px;font-weight:800;letter-spacing:-.02em}
+.card-stat-label{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em}
+.card-arrow{position:absolute;top:32px;right:32px;font-size:20px;color:var(--text-dim);transition:all .2s}
+.card:hover .card-arrow{color:var(--blue);transform:translateX(4px)}
+@media(max-width:768px){.container{padding:32px 16px}.header h1{font-size:28px}.grid{grid-template-columns:1fr}.card{padding:24px}}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header class="header">
+<div style="font-size:56px;margin-bottom:20px">📐</div>
+<h1>Enterprise Project Structures</h1>
+<p>Interactive reference architectures for production-grade applications. Explore directory trees, tech stacks, and architectural patterns.</p>
+</header>
+
+<div class="grid">
+
+<a class="card" href="projects/print-designer/index.html">
+<span class="card-arrow">&rarr;</span>
+<div class="card-icon">🖨️</div>
+<div class="card-title">Print Designer</div>
+<div class="card-desc">Web-based print designer canvas SPA — full feature scope for w2p-printerp-pod designer with multi-side products, variable data printing, and AI artwork generation.</div>
+<div class="card-tech">
+<span class="badge primary">React 19</span>
+<span class="badge primary">TypeScript</span>
+<span class="badge primary">Vite 6</span>
+<span class="badge primary">Fabric.js 6</span>
+<span class="badge">Zustand</span>
+<span class="badge">Apollo Client</span>
+<span class="badge">GraphQL Codegen</span>
+<span class="badge">Tailwind CSS 4</span>
+<span class="badge">Vitest</span>
+<span class="badge">Playwright</span>
+</div>
+<div class="card-stats">
+<div class="card-stat"><div class="card-stat-value" style="color:var(--blue)">60+</div><div class="card-stat-label">Directories</div></div>
+<div class="card-stat"><div class="card-stat-value" style="color:var(--purple)">240+</div><div class="card-stat-label">Files</div></div>
+<div class="card-stat"><div class="card-stat-value" style="color:var(--green)">120+</div><div class="card-stat-label">Source</div></div>
+<div class="card-stat"><div class="card-stat-value" style="color:var(--orange)">110+</div><div class="card-stat-label">Tests</div></div>
+<div class="card-stat"><div class="card-stat-value" style="color:var(--yellow)">17</div><div class="card-stat-label">Modules</div></div>
+</div>
+</a>
+
+<a class="card" href="projects/nestjs-graphql/index.html">
+<span class="card-arrow">&rarr;</span>
+<div class="card-icon">🏗️</div>
+<div class="card-title">NestJS Code-First GraphQL</div>
+<div class="card-desc">A complete reference for structuring a large-scale NestJS application using the code-first GraphQL approach with TypeORM, CASL authorization, and DataLoader batching.</div>
+<div class="card-tech">
+<span class="badge primary">NestJS</span>
+<span class="badge primary">TypeScript</span>
+<span class="badge primary">GraphQL</span>
+<span class="badge primary">Apollo Server</span>
+<span class="badge">TypeORM</span>
+<span class="badge">PostgreSQL</span>
+<span class="badge">Redis</span>
+<span class="badge">BullMQ</span>
+<span class="badge">CASL</span>
+<span class="badge">Jest</span>
+<span class="badge">OpenTelemetry</span>
+</div>
+<div class="card-stats">
+<div class="card-stat"><div class="card-stat-value" style="color:var(--blue)">30+</div><div class="card-stat-label">Directories</div></div>
+<div class="card-stat"><div class="card-stat-value" style="color:var(--purple)">80+</div><div class="card-stat-label">Files</div></div>
+<div class="card-stat"><div class="card-stat-value" style="color:var(--green)">40+</div><div class="card-stat-label">Source</div></div>
+<div class="card-stat"><div class="card-stat-value" style="color:var(--orange)">30+</div><div class="card-stat-label">Tests</div></div>
+<div class="card-stat"><div class="card-stat-value" style="color:var(--yellow)">3</div><div class="card-stat-label">Modules</div></div>
+</div>
+</a>
+
+<a class="card" href="projects/nextjs-enterprise/index.html">
+<span class="card-arrow">&rarr;</span>
+<div class="card-icon">🛒</div>
+<div class="card-title">Next.js Enterprise Ecommerce</div>
+<div class="card-desc">Production-ready Next.js 16 ecommerce architecture with App Router, GraphQL (Apollo Client + Code Generator), Auth.js v5, and Tailwind CSS 4.</div>
+<div class="card-tech">
+<span class="badge primary">Next.js 16</span>
+<span class="badge primary">React 19</span>
+<span class="badge primary">TypeScript</span>
+<span class="badge primary">GraphQL</span>
+<span class="badge primary">Apollo Client</span>
+<span class="badge">Tailwind CSS 4</span>
+<span class="badge">Auth.js v5</span>
+<span class="badge">Zustand</span>
+<span class="badge">Vitest</span>
+<span class="badge">Playwright</span>
+</div>
+<div class="card-stats">
+<div class="card-stat"><div class="card-stat-value" style="color:var(--blue)">35+</div><div class="card-stat-label">Directories</div></div>
+<div class="card-stat"><div class="card-stat-value" style="color:var(--purple)">90+</div><div class="card-stat-label">Files</div></div>
+<div class="card-stat"><div class="card-stat-value" style="color:var(--green)">50+</div><div class="card-stat-label">Source</div></div>
+<div class="card-stat"><div class="card-stat-value" style="color:var(--pink)">10+</div><div class="card-stat-label">GraphQL Ops</div></div>
+<div class="card-stat"><div class="card-stat-value" style="color:var(--yellow)">4</div><div class="card-stat-label">Route Groups</div></div>
+</div>
+</a>
+
+</div>
+
+</div>
+</body>
+</html>
