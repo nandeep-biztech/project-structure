@@ -10,14 +10,12 @@
 my-enterprise-app/
 ├── src/
 │   ├── app/
-│   │   ├── layout.tsx                  # Root layout — providers, fonts, metadata
-│   │   ├── page.tsx                    # Home page (/)
+│   │   ├── layout.tsx                  # Root layout — providers, fonts, metadata, lang attribute
 │   │   ├── not-found.tsx               # Custom 404 page
 │   │   ├── error.tsx                   # Route-level error boundary
 │   │   ├── global-error.tsx            # Root layout error boundary (catches layout errors)
 │   │   ├── forbidden.tsx               # Custom 403 page (experimental: authInterrupts)
 │   │   ├── unauthorized.tsx            # Custom 401 page (experimental: authInterrupts)
-│   │   ├── loading.tsx                 # Global loading UI (Suspense)
 │   │   │
 │   │   ├── api/
 │   │   │   ├── health/
@@ -29,36 +27,41 @@ my-enterprise-app/
 │   │   │       ├── stripe/route.ts     # Stripe webhook handler
 │   │   │       └── github/route.ts     # GitHub webhook handler
 │   │   │
-│   │   ├── (auth)/
-│   │   │   ├── layout.tsx              # Auth layout (centered card)
-│   │   │   ├── login/
-│   │   │   │   └── page.tsx            # /login
-│   │   │   └── register/
-│   │   │       └── page.tsx            # /register
-│   │   │
-│   │   ├── (shop)/
-│   │   │   ├── layout.tsx              # Shop layout (navbar + cart + footer)
-│   │   │   ├── products/
-│   │   │   │   ├── page.tsx            # /products (product listing)
-│   │   │   │   ├── loading.tsx         # Skeleton grid while loading
-│   │   │   │   └── [slug]/
-│   │   │   │       ├── page.tsx        # /products/:slug (product detail)
-│   │   │   │       └── loading.tsx     # Skeleton detail while loading
-│   │   │   ├── cart/
-│   │   │   │   └── page.tsx            # /cart
-│   │   │   └── checkout/
-│   │   │       └── page.tsx            # /checkout
-│   │   │
-│   │   └── (dashboard)/
-│   │       ├── layout.tsx              # Dashboard layout (sidebar + header)
-│   │       ├── overview/
-│   │       │   └── page.tsx            # /overview
-│   │       ├── settings/
-│   │       │   └── page.tsx            # /settings
-│   │       └── users/
-│   │           ├── page.tsx            # /users (list)
-│   │           └── [id]/
-│   │               └── page.tsx        # /users/:id (detail)
+│   │   └── [locale]/                   # Dynamic locale segment (en, fr, de, ar, ja, ...)
+│   │       ├── layout.tsx              # Locale layout — sets dir, loads translations
+│   │       ├── page.tsx                # Home page (/en, /fr, ...)
+│   │       ├── loading.tsx             # Global loading UI (Suspense)
+│   │       │
+│   │       ├── (auth)/
+│   │       │   ├── layout.tsx          # Auth layout (centered card)
+│   │       │   ├── login/
+│   │       │   │   └── page.tsx        # /[locale]/login
+│   │       │   └── register/
+│   │       │       └── page.tsx        # /[locale]/register
+│   │       │
+│   │       ├── (shop)/
+│   │       │   ├── layout.tsx          # Shop layout (navbar + cart + footer)
+│   │       │   ├── products/
+│   │       │   │   ├── page.tsx        # /[locale]/products (product listing)
+│   │       │   │   ├── loading.tsx     # Skeleton grid while loading
+│   │       │   │   └── [slug]/
+│   │       │   │       ├── page.tsx    # /[locale]/products/:slug (product detail)
+│   │       │   │       └── loading.tsx # Skeleton detail while loading
+│   │       │   ├── cart/
+│   │       │   │   └── page.tsx        # /[locale]/cart
+│   │       │   └── checkout/
+│   │       │       └── page.tsx        # /[locale]/checkout
+│   │       │
+│   │       └── (dashboard)/
+│   │           ├── layout.tsx          # Dashboard layout (sidebar + header)
+│   │           ├── overview/
+│   │           │   └── page.tsx        # /[locale]/overview
+│   │           ├── settings/
+│   │           │   └── page.tsx        # /[locale]/settings
+│   │           └── users/
+│   │               ├── page.tsx        # /[locale]/users (list)
+│   │               └── [id]/
+│   │                   └── page.tsx    # /[locale]/users/:id (detail)
 │   │
 │   ├── actions/                        # Server Actions ("use server")
 │   │   ├── user.actions.ts             # User create, update, delete actions
@@ -119,10 +122,39 @@ my-enterprise-app/
 │   │       ├── cart.graphql            # Cart queries & mutations
 │   │       └── auth.graphql            # Auth queries & mutations
 │   │
+│   ├── i18n/
+│   │   ├── config.ts                    # Supported locales, default locale, fallback rules
+│   │   ├── get-translations.ts          # Server-side: load translations for a given locale
+│   │   ├── client-provider.tsx          # "use client" — i18n context provider (IntlProvider)
+│   │   ├── navigation.ts               # Locale-aware Link, redirect, usePathname wrappers
+│   │   └── locales/
+│   │       ├── en/
+│   │       │   ├── common.json          # Shared strings (nav, buttons, errors, footer)
+│   │       │   ├── products.json        # Product page strings (filters, badges, labels)
+│   │       │   ├── cart.json            # Cart & checkout strings
+│   │       │   └── dashboard.json       # Dashboard strings
+│   │       ├── fr/
+│   │       │   ├── common.json
+│   │       │   ├── products.json
+│   │       │   ├── cart.json
+│   │       │   └── dashboard.json
+│   │       ├── de/
+│   │       │   ├── common.json
+│   │       │   ├── products.json
+│   │       │   ├── cart.json
+│   │       │   └── dashboard.json
+│   │       └── ar/
+│   │           ├── common.json          # RTL language support
+│   │           ├── products.json
+│   │           ├── cart.json
+│   │           └── dashboard.json
+│   │
 │   ├── lib/
-│   │   ├── utils.ts                    # Pure utilities — cn(), formatDate(), formatPrice()
-│   │   ├── utils.test.ts              # cn(), formatPrice(), formatDate() tests
-│   │   ├── api-client.ts              # Type-safe fetch wrapper with auth & retries
+│   │   ├── utils.ts                    # Pure utilities — cn(), formatDate()
+│   │   ├── utils.test.ts              # cn(), formatDate() tests
+│   │   ├── currency.ts                # formatPrice() with locale + currency, Intl.NumberFormat
+│   │   ├── currency.test.ts           # Multi-currency formatting tests (USD, EUR, JPY, etc.)
+│   │   ├── api-client.ts              # Type-safe fetch wrapper with auth, retries, store headers
 │   │   ├── auth.ts                    # Auth.js v5 config — exports handlers, auth, signIn, signOut
 │   │   └── validations/
 │   │       ├── user.ts               # User schemas (create, update)
@@ -134,25 +166,36 @@ my-enterprise-app/
 │   │   ├── use-debounce.test.ts        # Debounce timing with fake timers
 │   │   ├── use-media-query.ts
 │   │   ├── use-auth.ts
+│   │   ├── use-translations.ts         # Client-side translation hook — useTranslations(namespace)
+│   │   ├── use-currency.ts             # Currency formatting hook — useCurrency()
+│   │   ├── use-store-config.ts         # Current store config hook — useStoreConfig()
 │   │   ├── use-local-storage.ts
 │   │   └── use-local-storage.test.ts   # Read/write/clear localStorage
 │   │
 │   ├── services/
 │   │   ├── user.service.ts            # User queries via Apollo Client (server-side)
 │   │   ├── user.service.test.ts       # User service unit test
-│   │   ├── billing.service.ts         # Stripe integration
+│   │   ├── billing.service.ts         # Stripe integration (multi-currency aware)
+│   │   ├── currency.service.ts        # Exchange rate fetching, caching, conversion
+│   │   ├── currency.service.test.ts   # Exchange rate & conversion tests
 │   │   └── notification.service.ts    # Email, push, in-app notifications
 │   │
 │   ├── stores/
-│   │   ├── ui.store.ts                # Sidebar, theme, modals
+│   │   ├── ui.store.ts                # Sidebar, theme, modals (Zustand)
 │   │   ├── ui.store.test.ts           # Sidebar toggle, theme switching
-│   │   ├── cart.store.ts              # Shopping cart state (items, quantities)
+│   │   ├── cart.store.ts              # Shopping cart state — currency-aware (Zustand + persist)
 │   │   ├── cart.store.test.ts         # Cart ID persistence
+│   │   ├── currency.store.ts          # Active currency, exchange rates (Zustand + persist)
+│   │   ├── currency.store.test.ts     # Currency switching, rate caching tests
+│   │   ├── store-config.store.ts      # Active store/tenant context (Zustand)
 │   │   └── notification.store.ts      # Toast/notification queue
 │   │
 │   ├── types/
 │   │   ├── api.ts                     # ApiResponse<T>, ApiError
 │   │   ├── models.ts                  # User, Team, Project interfaces
+│   │   ├── i18n.ts                    # Locale, TranslationKey, Messages types
+│   │   ├── currency.ts               # Currency, ExchangeRate, MoneyAmount types
+│   │   ├── store.ts                   # StoreConfig, StoreTheme types
 │   │   └── globals.d.ts              # Global type augmentations
 │   │
 │   ├── styles/
@@ -160,8 +203,10 @@ my-enterprise-app/
 │   │
 │   ├── config/
 │   │   ├── site.ts                    # App name, description, URLs
-│   │   ├── nav.ts                     # Navigation items
-│   │   └── env.ts                     # Validated environment variables (via Zod)
+│   │   ├── nav.ts                     # Navigation items (per-store overrides)
+│   │   ├── env.ts                     # Validated environment variables (via Zod)
+│   │   ├── currencies.ts             # Supported currencies, symbols, decimal rules
+│   │   └── stores.ts                 # Multi-store definitions (region, domain, locale, currency, theme)
 │   │
 │   ├── constants/
 │   │   ├── roles.ts                   # USER_ROLES = ["admin", "member", "viewer"]
@@ -227,7 +272,6 @@ my-enterprise-app/
 ```tsx
 import { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { Providers } from "@/components/providers";
 import "@/styles/globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -243,9 +287,48 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
-        <Providers>{children}</Providers>
+    <html suppressHydrationWarning>
+      <body className={inter.className}>{children}</body>
+    </html>
+  );
+}
+```
+
+### Locale Layout — `src/app/[locale]/layout.tsx`
+
+> Sets the `lang` and `dir` attributes per locale. Loads translations and wraps children with i18n + store providers.
+
+```tsx
+import { notFound } from "next/navigation";
+import { getTranslations } from "@/i18n/get-translations";
+import { I18nProvider } from "@/i18n/client-provider";
+import { Providers } from "@/components/providers";
+import { SUPPORTED_LOCALES, type Locale } from "@/i18n/config";
+import { getStoreByLocale } from "@/config/stores";
+
+interface Props {
+  children: React.ReactNode;
+  params: Promise<{ locale: string }>;
+}
+
+export function generateStaticParams() {
+  return SUPPORTED_LOCALES.map((locale) => ({ locale }));
+}
+
+export default async function LocaleLayout({ children, params }: Props) {
+  const { locale } = await params;
+  if (!SUPPORTED_LOCALES.includes(locale as Locale)) notFound();
+
+  const messages = await getTranslations(locale as Locale);
+  const store = getStoreByLocale(locale as Locale);
+  const dir = ["ar", "he"].includes(locale) ? "rtl" : "ltr";
+
+  return (
+    <html lang={locale} dir={dir} suppressHydrationWarning>
+      <body>
+        <I18nProvider locale={locale} messages={messages}>
+          <Providers storeConfig={store}>{children}</Providers>
+        </I18nProvider>
       </body>
     </html>
   );
@@ -387,7 +470,7 @@ export function Button({ className, variant, size, ...props }: ButtonProps) {
 
 ### Providers Composition — `src/components/providers.tsx`
 
-> Composes all client-side providers: Auth, GraphQL (Apollo), Theme, and Toast notifications.
+> Composes all client-side providers: Auth, GraphQL (Apollo), Theme, Currency, Store Config, and Toast notifications.
 
 ```tsx
 "use client";
@@ -396,16 +479,28 @@ import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/toaster";
 import GraphQlProvider from "@/graphql/GraphQlProvider";
+import { CurrencyProvider } from "@/stores/currency.store";
+import { StoreConfigProvider } from "@/stores/store-config.store";
+import type { StoreConfig } from "@/types/store";
 
-export function Providers({ children }: { children: React.ReactNode }) {
+interface ProvidersProps {
+  children: React.ReactNode;
+  storeConfig: StoreConfig;
+}
+
+export function Providers({ children, storeConfig }: ProvidersProps) {
   return (
     <SessionProvider>
-      <GraphQlProvider>
-        <ThemeProvider attribute="class" defaultTheme="system">
-          {children}
-          <Toaster />
-        </ThemeProvider>
-      </GraphQlProvider>
+      <StoreConfigProvider config={storeConfig}>
+        <GraphQlProvider>
+          <CurrencyProvider defaultCurrency={storeConfig.defaultCurrency}>
+            <ThemeProvider attribute="class" defaultTheme="system">
+              {children}
+              <Toaster />
+            </ThemeProvider>
+          </CurrencyProvider>
+        </GraphQlProvider>
+      </StoreConfigProvider>
     </SessionProvider>
   );
 }
@@ -421,8 +516,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat("en-US", {
+export function formatDate(date: Date, locale = "en-US"): string {
+  return new Intl.DateTimeFormat(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -431,6 +526,43 @@ export function formatDate(date: Date): string {
 
 export function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+```
+
+### Currency Formatting — `src/lib/currency.ts`
+
+> Locale-aware currency formatting using `Intl.NumberFormat`. Supports all ISO 4217 currencies.
+
+```ts
+import type { Currency } from "@/types/currency";
+
+export function formatPrice(
+  amount: number,
+  currency: Currency = "USD",
+  locale = "en-US"
+): string {
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency,
+    minimumFractionDigits: getDecimalPlaces(currency),
+    maximumFractionDigits: getDecimalPlaces(currency),
+  }).format(amount);
+}
+
+function getDecimalPlaces(currency: Currency): number {
+  const zeroDecimal: Currency[] = ["JPY", "KRW", "VND"];
+  return zeroDecimal.includes(currency) ? 0 : 2;
+}
+
+export function convertPrice(
+  amount: number,
+  fromCurrency: Currency,
+  toCurrency: Currency,
+  rates: Record<string, number>
+): number {
+  if (fromCurrency === toCurrency) return amount;
+  const baseAmount = amount / (rates[fromCurrency] ?? 1);
+  return baseAmount * (rates[toCurrency] ?? 1);
 }
 ```
 
@@ -531,40 +663,170 @@ export interface ApiError {
 
 ### Proxy — `src/proxy.ts`
 
-> **Next.js 16:** `middleware.ts` is deprecated and renamed to `proxy.ts`. The proxy runs on **Node.js runtime only** (Edge Runtime is not supported). Use it as a last resort — prefer route handlers, server components, and `next.config.ts` redirects when possible. Never rely on it as the sole auth check.
+> **Next.js 16:** `middleware.ts` is deprecated and renamed to `proxy.ts`. The proxy handles locale detection, store resolution, and auth redirects. Runs on **Node.js runtime only**.
 
 ```ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { SUPPORTED_LOCALES, DEFAULT_LOCALE } from "@/i18n/config";
+import { resolveStore } from "@/config/stores";
 
 const publicPaths = ["/login", "/register", "/api/health"];
 
 export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, hostname } = request.nextUrl;
 
-  if (pathname === "/" || publicPaths.some((p) => pathname.startsWith(p))) {
-    return NextResponse.next();
+  // 1. Resolve store from hostname (us.myapp.com → US store, eu.myapp.com → EU store)
+  const store = resolveStore(hostname);
+  const response = NextResponse.next();
+  response.headers.set("x-store-id", store.id);
+
+  // 2. Locale detection & redirect — check URL, cookie, Accept-Language header
+  const pathnameLocale = SUPPORTED_LOCALES.find(
+    (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
+  );
+
+  if (!pathnameLocale) {
+    const preferredLocale =
+      request.cookies.get("locale")?.value ??
+      negotiateLocale(request.headers.get("accept-language")) ??
+      store.defaultLocale ??
+      DEFAULT_LOCALE;
+
+    return NextResponse.redirect(
+      new URL(`/${preferredLocale}${pathname}`, request.url)
+    );
   }
 
-  const token = request.cookies.get("session-token")?.value;
-  if (!token) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(loginUrl);
+  // 3. Auth check for protected routes
+  const pathWithoutLocale = pathname.replace(`/${pathnameLocale}`, "") || "/";
+  if (!publicPaths.some((p) => pathWithoutLocale.startsWith(p)) && pathWithoutLocale !== "/") {
+    const token = request.cookies.get("session-token")?.value;
+    if (!token) {
+      const loginUrl = new URL(`/${pathnameLocale}/login`, request.url);
+      loginUrl.searchParams.set("callbackUrl", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
   }
 
-  return NextResponse.next();
+  return response;
+}
+
+function negotiateLocale(acceptLanguage: string | null): string | undefined {
+  if (!acceptLanguage) return undefined;
+  const preferred = acceptLanguage.split(",")[0]?.split("-")[0]?.trim();
+  return SUPPORTED_LOCALES.find((l) => l === preferred);
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/).*)"],
 };
+```
+
+### i18n Config — `src/i18n/config.ts`
+
+```ts
+export const SUPPORTED_LOCALES = ["en", "fr", "de", "ar", "ja"] as const;
+export type Locale = (typeof SUPPORTED_LOCALES)[number];
+
+export const DEFAULT_LOCALE: Locale = "en";
+
+export const RTL_LOCALES: Locale[] = ["ar"];
+
+export const LOCALE_LABELS: Record<Locale, string> = {
+  en: "English",
+  fr: "Français",
+  de: "Deutsch",
+  ar: "العربية",
+  ja: "日本語",
+};
+```
+
+### Currencies Config — `src/config/currencies.ts`
+
+```ts
+import type { Currency } from "@/types/currency";
+
+export const SUPPORTED_CURRENCIES: Currency[] = ["USD", "EUR", "GBP", "JPY", "AED", "INR"];
+export const DEFAULT_CURRENCY: Currency = "USD";
+
+export const CURRENCY_CONFIG: Record<Currency, { symbol: string; decimals: number; locale: string }> = {
+  USD: { symbol: "$", decimals: 2, locale: "en-US" },
+  EUR: { symbol: "€", decimals: 2, locale: "de-DE" },
+  GBP: { symbol: "£", decimals: 2, locale: "en-GB" },
+  JPY: { symbol: "¥", decimals: 0, locale: "ja-JP" },
+  AED: { symbol: "د.إ", decimals: 2, locale: "ar-AE" },
+  INR: { symbol: "₹", decimals: 2, locale: "en-IN" },
+};
+```
+
+### Store Config — `src/config/stores.ts`
+
+> Each store maps to a region/domain with its own default locale, currency, and theme overrides.
+
+```ts
+import type { StoreConfig } from "@/types/store";
+import type { Locale } from "@/i18n/config";
+
+export const STORES: StoreConfig[] = [
+  {
+    id: "us",
+    name: "United States",
+    domain: "us.myapp.com",
+    defaultLocale: "en",
+    defaultCurrency: "USD",
+    supportedCurrencies: ["USD"],
+    supportedLocales: ["en"],
+    theme: {},
+  },
+  {
+    id: "eu",
+    name: "Europe",
+    domain: "eu.myapp.com",
+    defaultLocale: "de",
+    defaultCurrency: "EUR",
+    supportedCurrencies: ["EUR", "GBP"],
+    supportedLocales: ["en", "fr", "de"],
+    theme: {},
+  },
+  {
+    id: "me",
+    name: "Middle East",
+    domain: "me.myapp.com",
+    defaultLocale: "ar",
+    defaultCurrency: "AED",
+    supportedCurrencies: ["AED", "USD"],
+    supportedLocales: ["ar", "en"],
+    theme: {},
+  },
+  {
+    id: "in",
+    name: "India",
+    domain: "in.myapp.com",
+    defaultLocale: "en",
+    defaultCurrency: "INR",
+    supportedCurrencies: ["INR", "USD"],
+    supportedLocales: ["en"],
+    theme: {},
+  },
+];
+
+export function resolveStore(hostname: string): StoreConfig {
+  return STORES.find((s) => s.domain === hostname) ?? STORES[0];
+}
+
+export function getStoreByLocale(locale: Locale): StoreConfig {
+  return STORES.find((s) => s.defaultLocale === locale) ?? STORES[0];
+}
 ```
 
 ### Next.js Config — `next.config.ts`
 
 ```ts
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
+
+const withNextIntl = createNextIntlPlugin("./src/i18n/config.ts");
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -591,7 +853,7 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);
 ```
 
 ### TypeScript Config — `tsconfig.json`
@@ -633,6 +895,14 @@ RESEND_API_KEY="re_..."
 
 # GraphQL
 NEXT_PUBLIC_API_BASEURL="http://localhost:1337/graphql"
+
+# Multi-store
+NEXT_PUBLIC_DEFAULT_STORE="us"
+EXCHANGE_RATE_API_KEY="your-exchange-rate-api-key"
+EXCHANGE_RATE_API_URL="https://api.exchangerate.host/latest"
+
+# i18n
+NEXT_PUBLIC_DEFAULT_LOCALE="en"
 
 # Public (exposed to browser — baked in at build time)
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
@@ -694,7 +964,8 @@ jobs:
 
 ```ts
 import { describe, it, expect } from "vitest";
-import { cn, formatPrice, formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
+import { formatPrice } from "@/lib/currency";
 
 describe("cn", () => {
   it("merges class names", () => {
@@ -715,8 +986,12 @@ describe("formatPrice", () => {
     expect(formatPrice(29.99)).toBe("$29.99");
   });
 
-  it("formats zero", () => {
-    expect(formatPrice(0)).toBe("$0.00");
+  it("formats EUR with locale", () => {
+    expect(formatPrice(29.99, "EUR", "de-DE")).toContain("29,99");
+  });
+
+  it("formats JPY with zero decimals", () => {
+    expect(formatPrice(2999, "JPY", "ja-JP")).toContain("2,999");
   });
 
   it("formats large numbers with commas", () => {

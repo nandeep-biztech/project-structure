@@ -123,6 +123,7 @@ tr:hover td{background:rgba(30,41,59,.4)}
 <span class="tech-badge primary">GraphQL</span>
 <span class="tech-badge primary">Apollo Client</span>
 <span class="tech-badge">Tailwind CSS 4</span>
+<span class="tech-badge primary">next-intl</span>
 <span class="tech-badge">Zustand</span>
 <span class="tech-badge">Auth.js v5</span>
 <span class="tech-badge">Zod</span>
@@ -130,11 +131,13 @@ tr:hover td{background:rgba(30,41,59,.4)}
 <span class="tech-badge">Playwright</span>
 </div>
 <div class="stats-bar">
-<div class="stat"><div class="stat-value" style="color:var(--blue)">35+</div><div class="stat-label">Directories</div></div>
-<div class="stat"><div class="stat-value" style="color:var(--purple)">90+</div><div class="stat-label">Total Files</div></div>
-<div class="stat"><div class="stat-value" style="color:var(--green)">50+</div><div class="stat-label">Source Files</div></div>
+<div class="stat"><div class="stat-value" style="color:var(--blue)">45+</div><div class="stat-label">Directories</div></div>
+<div class="stat"><div class="stat-value" style="color:var(--purple)">120+</div><div class="stat-label">Total Files</div></div>
+<div class="stat"><div class="stat-value" style="color:var(--green)">70+</div><div class="stat-label">Source Files</div></div>
 <div class="stat"><div class="stat-value" style="color:var(--pink)">10+</div><div class="stat-label">GraphQL Ops</div></div>
 <div class="stat"><div class="stat-value" style="color:var(--yellow)">4</div><div class="stat-label">Route Groups</div></div>
+<div class="stat"><div class="stat-value" style="color:var(--cyan)">5</div><div class="stat-label">Locales</div></div>
+<div class="stat"><div class="stat-value" style="color:var(--orange)">4</div><div class="stat-label">Stores</div></div>
 </div>
 </header>
 
@@ -147,8 +150,9 @@ tr:hover td{background:rgba(30,41,59,.4)}
 <tr><td>Framework</td><td>Next.js 16 + React 19 (App Router)</td></tr>
 <tr><td>Language</td><td>TypeScript 5.5+ (strict mode)</td></tr>
 <tr><td>GraphQL</td><td>Apollo Client + GraphQL Code Generator</td></tr>
+<tr><td>i18n</td><td>next-intl (server/client translations, locale routing)</td></tr>
 <tr><td>Styling</td><td>Tailwind CSS 4 (CSS-native config) + shadcn/ui + CVA</td></tr>
-<tr><td>State</td><td>Zustand (client UI state + cart)</td></tr>
+<tr><td>State</td><td>Zustand (client UI state + cart + currency + store config)</td></tr>
 <tr><td>Auth</td><td>Auth.js v5 (NextAuth v5)</td></tr>
 <tr><td>Validation</td><td>Zod (shared client + server schemas)</td></tr>
 <tr><td>Forms</td><td>React 19 useActionState + useFormStatus + useOptimistic</td></tr>
@@ -176,17 +180,28 @@ tr:hover td{background:rgba(30,41,59,.4)}
 </div>
 </div>
 <div class="flow-card">
-<h3>Request Flow — App Router</h3>
+<h3>Request Flow — App Router + i18n + Multi-Store</h3>
 <div class="flow-steps">
-<div class="flow-step"><span class="flow-step-label">Incoming Request</span></div>
+<div class="flow-step"><span class="flow-step-label">Incoming Request</span> <span class="flow-step-detail">us.myapp.com/products or eu.myapp.com/fr/products</span></div>
 <div class="flow-arrow">↓</div>
-<div class="flow-step"><span class="flow-step-label">proxy.ts</span> <span class="flow-step-detail">Auth redirects, security headers (Node.js runtime)</span></div>
+<div class="flow-step"><span class="flow-step-label">proxy.ts</span> <span class="flow-step-detail">Resolve store from hostname → detect/redirect locale → auth check</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step" style="border-left-color:var(--cyan)"><span class="flow-step-label">[locale]/layout.tsx</span> <span class="flow-step-detail">Load translations, set lang/dir, init store config + currency</span></div>
 <div class="flow-arrow">↓</div>
 <div class="flow-step"><span class="flow-step-label">Route Group Layout</span> <span class="flow-step-detail">(auth) | (shop) | (dashboard) — session check</span></div>
 <div class="flow-arrow">↓</div>
-<div class="flow-step"><span class="flow-step-label">Server Component</span> <span class="flow-step-detail">Fetches data via Apollo Client on server</span></div>
+<div class="flow-step"><span class="flow-step-label">Server Component</span> <span class="flow-step-detail">Fetches data via Apollo Client with store/locale headers</span></div>
 <div class="flow-arrow">↓</div>
-<div class="flow-step"><span class="flow-step-label">Client Components</span> <span class="flow-step-detail">Interactive UI with generated Apollo hooks</span></div>
+<div class="flow-step"><span class="flow-step-label">Client Components</span> <span class="flow-step-detail">Locale-aware UI, currency-formatted prices, RTL support</span></div>
+</div>
+</div>
+<div class="flow-card">
+<h3>Multi-Store Resolution</h3>
+<div class="flow-steps">
+<div class="flow-step"><span class="flow-step-label">us.myapp.com</span> <span class="flow-step-detail">→ US store — English, USD</span></div>
+<div class="flow-step" style="border-left-color:var(--purple)"><span class="flow-step-label">eu.myapp.com</span> <span class="flow-step-detail">→ EU store — English/French/German, EUR/GBP</span></div>
+<div class="flow-step" style="border-left-color:var(--green)"><span class="flow-step-label">me.myapp.com</span> <span class="flow-step-detail">→ Middle East store — Arabic (RTL)/English, AED/USD</span></div>
+<div class="flow-step" style="border-left-color:var(--orange)"><span class="flow-step-label">in.myapp.com</span> <span class="flow-step-detail">→ India store — English, INR/USD</span></div>
 </div>
 </div>
 </section>
@@ -252,6 +267,12 @@ tr:hover td{background:rgba(30,41,59,.4)}
 <span class="hl-key">STRIPE_WEBHOOK_SECRET</span>=<span class="hl-val">whsec_...</span>
 <span class="hl-key">RESEND_API_KEY</span>=<span class="hl-val">re_...</span>
 
+<span class="hl-comment"># Multi-store & i18n</span>
+<span class="hl-key">NEXT_PUBLIC_DEFAULT_STORE</span>=<span class="hl-val">us</span>
+<span class="hl-key">NEXT_PUBLIC_DEFAULT_LOCALE</span>=<span class="hl-val">en</span>
+<span class="hl-key">EXCHANGE_RATE_API_KEY</span>=<span class="hl-val">your-exchange-rate-api-key</span>
+<span class="hl-key">EXCHANGE_RATE_API_URL</span>=<span class="hl-val">https://api.exchangerate.host/latest</span>
+
 <span class="hl-comment"># Public (baked in at build time)</span>
 <span class="hl-key">NEXT_PUBLIC_APP_URL</span>=<span class="hl-val">http://localhost:3000</span>
 <span class="hl-key">NEXT_PUBLIC_POSTHOG_KEY</span>=<span class="hl-val">phc_...</span></div>
@@ -263,47 +284,50 @@ tr:hover td{background:rgba(30,41,59,.4)}
 const T=[
 {name:"src/",tag:"app",children:[
   {name:"app/",tag:"app",children:[
-    {name:"layout.tsx",type:"page",desc:"Root layout — providers, fonts, metadata"},
-    {name:"page.tsx",type:"page",desc:"Home page (/)"},
+    {name:"layout.tsx",type:"page",desc:"Root layout — fonts, global styles (no lang — set by [locale])"},
     {name:"not-found.tsx",type:"page",desc:"Custom 404 page"},
     {name:"error.tsx",type:"page",desc:"Route-level error boundary"},
     {name:"global-error.tsx",type:"page",desc:"Root layout error boundary"},
     {name:"forbidden.tsx",type:"page",desc:"Custom 403 page (experimental: authInterrupts)"},
     {name:"unauthorized.tsx",type:"page",desc:"Custom 401 page (experimental: authInterrupts)"},
-    {name:"loading.tsx",type:"page",desc:"Global loading UI (Suspense)"},
     {name:"api/",tag:"api",children:[
       {name:"health/",children:[{name:"route.ts",type:"service",desc:"Health check endpoint"}]},
       {name:"auth/",children:[{name:"[...nextauth]/",children:[{name:"route.ts",type:"service",desc:"Auth.js v5 route handler"}]}]},
       {name:"webhooks/",children:[
-        {name:"stripe/",children:[{name:"route.ts",type:"service",desc:"Stripe webhook handler"}]},
+        {name:"stripe/",children:[{name:"route.ts",type:"service",desc:"Stripe webhook handler (multi-currency)"}]},
         {name:"github/",children:[{name:"route.ts",type:"service",desc:"GitHub webhook handler"}]}
       ]}
     ]},
-    {name:"(auth)/",tag:"route-group",children:[
-      {name:"layout.tsx",type:"page",desc:"Auth layout (centered card)"},
-      {name:"login/",children:[{name:"page.tsx",type:"page",desc:"/login"}]},
-      {name:"register/",children:[{name:"page.tsx",type:"page",desc:"/register"}]}
-    ]},
-    {name:"(shop)/",tag:"ecommerce",children:[
-      {name:"layout.tsx",type:"page",desc:"Shop layout (navbar + cart + footer)"},
-      {name:"products/",children:[
-        {name:"page.tsx",type:"page",desc:"/products — product listing with filters"},
-        {name:"loading.tsx",type:"page",desc:"Skeleton grid while loading"},
-        {name:"[slug]/",children:[
-          {name:"page.tsx",type:"page",desc:"/products/:slug — product detail + SEO metadata"},
-          {name:"loading.tsx",type:"page",desc:"Skeleton detail while loading"}
-        ]}
+    {name:"[locale]/",tag:"app",children:[
+      {name:"layout.tsx",type:"page",desc:"Locale layout — sets lang, dir (RTL), loads translations, init store"},
+      {name:"page.tsx",type:"page",desc:"Home page (/en, /fr, /de, ...)"},
+      {name:"loading.tsx",type:"page",desc:"Global loading UI (Suspense)"},
+      {name:"(auth)/",tag:"route-group",children:[
+        {name:"layout.tsx",type:"page",desc:"Auth layout (centered card)"},
+        {name:"login/",children:[{name:"page.tsx",type:"page",desc:"/[locale]/login"}]},
+        {name:"register/",children:[{name:"page.tsx",type:"page",desc:"/[locale]/register"}]}
       ]},
-      {name:"cart/",children:[{name:"page.tsx",type:"page",desc:"/cart — shopping cart"}]},
-      {name:"checkout/",children:[{name:"page.tsx",type:"page",desc:"/checkout — checkout flow"}]}
-    ]},
-    {name:"(dashboard)/",tag:"route-group",children:[
-      {name:"layout.tsx",type:"page",desc:"Dashboard layout (sidebar + header) — server-side auth check"},
-      {name:"overview/",children:[{name:"page.tsx",type:"page",desc:"/overview"}]},
-      {name:"settings/",children:[{name:"page.tsx",type:"page",desc:"/settings"}]},
-      {name:"users/",children:[
-        {name:"page.tsx",type:"page",desc:"/users (list)"},
-        {name:"[id]/",children:[{name:"page.tsx",type:"page",desc:"/users/:id (detail) — async params"}]}
+      {name:"(shop)/",tag:"ecommerce",children:[
+        {name:"layout.tsx",type:"page",desc:"Shop layout (navbar + cart + currency switcher + footer)"},
+        {name:"products/",children:[
+          {name:"page.tsx",type:"page",desc:"/[locale]/products — localized product listing"},
+          {name:"loading.tsx",type:"page",desc:"Skeleton grid while loading"},
+          {name:"[slug]/",children:[
+            {name:"page.tsx",type:"page",desc:"/[locale]/products/:slug — localized detail + SEO"},
+            {name:"loading.tsx",type:"page",desc:"Skeleton detail while loading"}
+          ]}
+        ]},
+        {name:"cart/",children:[{name:"page.tsx",type:"page",desc:"/[locale]/cart — currency-aware cart"}]},
+        {name:"checkout/",children:[{name:"page.tsx",type:"page",desc:"/[locale]/checkout — multi-currency checkout"}]}
+      ]},
+      {name:"(dashboard)/",tag:"route-group",children:[
+        {name:"layout.tsx",type:"page",desc:"Dashboard layout (sidebar + header) — server-side auth check"},
+        {name:"overview/",children:[{name:"page.tsx",type:"page",desc:"/[locale]/overview"}]},
+        {name:"settings/",children:[{name:"page.tsx",type:"page",desc:"/[locale]/settings — locale & currency preferences"}]},
+        {name:"users/",children:[
+          {name:"page.tsx",type:"page",desc:"/[locale]/users (list)"},
+          {name:"[id]/",children:[{name:"page.tsx",type:"page",desc:"/[locale]/users/:id (detail) — async params"}]}
+        ]}
       ]}
     ]}
   ]},
@@ -311,6 +335,38 @@ const T=[
     {name:"user.actions.ts",type:"action",desc:"User create, update, delete server actions"},
     {name:"auth.actions.ts",type:"action",desc:"Login, register, logout server actions"},
     {name:"cart.actions.ts",type:"action",desc:"Add to cart, remove, update quantity"}
+  ]},
+  {name:"i18n/",tag:"config",children:[
+    {name:"config.ts",type:"config",desc:"Supported locales, default locale, RTL list, labels"},
+    {name:"get-translations.ts",type:"util",desc:"Server-side: load translation JSON for a given locale"},
+    {name:"client-provider.tsx",type:"component",desc:"\"use client\" — IntlProvider wrapper for translations"},
+    {name:"navigation.ts",type:"util",desc:"Locale-aware Link, redirect, usePathname wrappers"},
+    {name:"locales/",children:[
+      {name:"en/",children:[
+        {name:"common.json",type:"config",desc:"English — nav, buttons, errors, footer"},
+        {name:"products.json",type:"config",desc:"English — product filters, badges, labels"},
+        {name:"cart.json",type:"config",desc:"English — cart & checkout strings"},
+        {name:"dashboard.json",type:"config",desc:"English — dashboard strings"}
+      ]},
+      {name:"fr/",children:[
+        {name:"common.json",type:"config",desc:"French — nav, buttons, errors, footer"},
+        {name:"products.json",type:"config",desc:"French — product filters, badges, labels"},
+        {name:"cart.json",type:"config",desc:"French — cart & checkout strings"},
+        {name:"dashboard.json",type:"config",desc:"French — dashboard strings"}
+      ]},
+      {name:"de/",children:[
+        {name:"common.json",type:"config",desc:"German translations"},
+        {name:"products.json",type:"config",desc:"German — product strings"},
+        {name:"cart.json",type:"config",desc:"German — cart strings"},
+        {name:"dashboard.json",type:"config",desc:"German — dashboard strings"}
+      ]},
+      {name:"ar/",children:[
+        {name:"common.json",type:"config",desc:"Arabic (RTL) — nav, buttons, errors"},
+        {name:"products.json",type:"config",desc:"Arabic — product strings"},
+        {name:"cart.json",type:"config",desc:"Arabic — cart strings"},
+        {name:"dashboard.json",type:"config",desc:"Arabic — dashboard strings"}
+      ]}
+    ]}
   ]},
   {name:"components/",tag:"components",children:[
     {name:"ui/",children:[
@@ -356,7 +412,7 @@ const T=[
       {name:"login-form.tsx",type:"component",desc:"Login form with server action"},
       {name:"settings-form.tsx",type:"component",desc:"Settings form"}
     ]},
-    {name:"providers.tsx",type:"component",desc:"All providers: Auth + GraphQL + Theme + Toast"}
+    {name:"providers.tsx",type:"component",desc:"All providers: Auth + GraphQL + Theme + Currency + Store + Toast"}
   ]},
   {name:"apollo/",tag:"graphql",children:[
     {name:"client.ts",type:"graphql",desc:"Apollo Client configuration (singleton)"}
@@ -375,9 +431,11 @@ const T=[
     ]}
   ]},
   {name:"lib/",tag:"lib",children:[
-    {name:"utils.ts",type:"util",desc:"cn(), formatDate(), formatPrice(), sleep()"},
-    {name:"utils.test.ts",type:"util",desc:"cn(), formatPrice(), formatDate() tests"},
-    {name:"api-client.ts",type:"util",desc:"Type-safe fetch wrapper with auth & retries"},
+    {name:"utils.ts",type:"util",desc:"cn(), formatDate(locale), sleep()"},
+    {name:"utils.test.ts",type:"util",desc:"cn(), formatDate() tests"},
+    {name:"currency.ts",type:"util",desc:"formatPrice(amount, currency, locale), convertPrice() — Intl.NumberFormat"},
+    {name:"currency.test.ts",type:"util",desc:"Multi-currency formatting tests (USD, EUR, JPY, INR)"},
+    {name:"api-client.ts",type:"util",desc:"Type-safe fetch wrapper with auth, retries, store headers"},
     {name:"auth.ts",type:"config",desc:"Auth.js v5 config — exports handlers, auth, signIn, signOut"},
     {name:"validations/",children:[
       {name:"user.ts",type:"util",desc:"User Zod schemas (create, update)"},
@@ -390,25 +448,36 @@ const T=[
     {name:"use-debounce.test.ts",type:"hook",desc:"Debounce timing with fake timers"},
     {name:"use-media-query.ts",type:"hook",desc:"Responsive breakpoint detection"},
     {name:"use-auth.ts",type:"hook",desc:"Auth state and session helpers"},
+    {name:"use-translations.ts",type:"hook",desc:"Client-side translation hook — useTranslations(namespace)"},
+    {name:"use-currency.ts",type:"hook",desc:"Currency formatting hook — useCurrency() returns formatPrice"},
+    {name:"use-store-config.ts",type:"hook",desc:"Current store config hook — useStoreConfig()"},
     {name:"use-local-storage.ts",type:"hook",desc:"Persistent local storage state"},
     {name:"use-local-storage.test.ts",type:"hook",desc:"Read/write/clear localStorage"}
   ]},
   {name:"services/",tag:"services",children:[
     {name:"user.service.ts",type:"service",desc:"User queries via Apollo Client (server-side)"},
     {name:"user.service.test.ts",type:"service",desc:"User service unit test"},
-    {name:"billing.service.ts",type:"service",desc:"Stripe integration"},
+    {name:"billing.service.ts",type:"service",desc:"Stripe integration (multi-currency aware)"},
+    {name:"currency.service.ts",type:"service",desc:"Exchange rate fetching, caching, conversion"},
+    {name:"currency.service.test.ts",type:"service",desc:"Exchange rate & conversion tests"},
     {name:"notification.service.ts",type:"service",desc:"Email, push, in-app notifications"}
   ]},
   {name:"stores/",tag:"stores",children:[
     {name:"ui.store.ts",type:"store",desc:"Sidebar, theme, modals (Zustand)"},
     {name:"ui.store.test.ts",type:"store",desc:"Sidebar toggle, theme switching"},
-    {name:"cart.store.ts",type:"store",desc:"Shopping cart ID — persisted (Zustand + persist)"},
+    {name:"cart.store.ts",type:"store",desc:"Shopping cart — currency-aware (Zustand + persist)"},
     {name:"cart.store.test.ts",type:"store",desc:"Cart ID persistence test"},
+    {name:"currency.store.ts",type:"store",desc:"Active currency, exchange rates (Zustand + persist)"},
+    {name:"currency.store.test.ts",type:"store",desc:"Currency switching, rate caching tests"},
+    {name:"store-config.store.ts",type:"store",desc:"Active store/tenant context (Zustand)"},
     {name:"notification.store.ts",type:"store",desc:"Toast/notification queue"}
   ]},
   {name:"types/",tag:"types",children:[
     {name:"api.ts",type:"util",desc:"ApiResponse<T>, ApiError interfaces"},
     {name:"models.ts",type:"util",desc:"User, Team, Project interfaces"},
+    {name:"i18n.ts",type:"util",desc:"Locale, TranslationKey, Messages types"},
+    {name:"currency.ts",type:"util",desc:"Currency, ExchangeRate, MoneyAmount types"},
+    {name:"store.ts",type:"util",desc:"StoreConfig, StoreTheme types"},
     {name:"globals.d.ts",type:"util",desc:"Global type augmentations"}
   ]},
   {name:"styles/",children:[
@@ -416,14 +485,16 @@ const T=[
   ]},
   {name:"config/",tag:"config",children:[
     {name:"site.ts",type:"config",desc:"App name, description, URLs"},
-    {name:"nav.ts",type:"config",desc:"Navigation items"},
-    {name:"env.ts",type:"config",desc:"Validated environment variables (via Zod)"}
+    {name:"nav.ts",type:"config",desc:"Navigation items (per-store overrides)"},
+    {name:"env.ts",type:"config",desc:"Validated environment variables (via Zod)"},
+    {name:"currencies.ts",type:"config",desc:"Supported currencies, symbols, decimal rules, formatting"},
+    {name:"stores.ts",type:"config",desc:"Multi-store definitions — region, domain, locale, currency, theme"}
   ]},
   {name:"constants/",children:[
     {name:"roles.ts",type:"config",desc:'USER_ROLES = ["admin", "member", "viewer"]'},
     {name:"limits.ts",type:"config",desc:"MAX_UPLOAD_SIZE, PAGINATION_LIMIT"}
   ]},
-  {name:"proxy.ts",type:"config",desc:"Proxy — auth redirects, headers (Next.js 16, replaces middleware)"}
+  {name:"proxy.ts",type:"config",desc:"Proxy — store resolution, locale detection, auth redirects (Next.js 16)"}
 ]},
 {name:"public/",children:[
   {name:"images/",desc:"Static image assets"},
