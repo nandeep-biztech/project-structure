@@ -156,6 +156,8 @@ my-enterprise-app/
 │   │   ├── currency.test.ts           # Multi-currency formatting tests (USD, EUR, JPY, etc.)
 │   │   ├── api-client.ts              # Type-safe fetch wrapper with auth, retries, store headers
 │   │   ├── auth.ts                    # Auth.js v5 config — exports handlers, auth, signIn, signOut
+│   │   ├── metadata.ts                # generatePageMetadata() — locale-aware titles, alternates, openGraph
+│   │   ├── web-vitals.ts              # reportWebVitals() — CLS, LCP, INP reporting to analytics
 │   │   └── validations/
 │   │       ├── user.ts               # User schemas (create, update)
 │   │       ├── auth.ts               # Auth schemas (login, register)
@@ -202,7 +204,7 @@ my-enterprise-app/
 │   │   └── globals.css                # @import "tailwindcss", @theme config, keyframes
 │   │
 │   ├── config/
-│   │   ├── site.ts                    # App name, description, URLs
+│   │   ├── site.ts                    # App name, description, URLs, preconnect origins
 │   │   ├── nav.ts                     # Navigation items (per-store overrides)
 │   │   ├── env.ts                     # Validated environment variables (via Zod)
 │   │   ├── currencies.ts             # Supported currencies, symbols, decimal rules
@@ -854,6 +856,70 @@ const nextConfig: NextConfig = {
 };
 
 export default withNextIntl(nextConfig);
+```
+
+### Metadata Helper — `src/lib/metadata.ts`
+
+> Generates locale-aware metadata with hreflang alternates for SEO. Used by every page via `generateMetadata()`.
+
+```ts
+import type { Metadata } from "next";
+import { SUPPORTED_LOCALES } from "@/i18n/config";
+
+interface PageMetadataOptions {
+  locale: string;
+  titleKey: string;
+  descKey: string;
+  path?: string;
+  images?: string[];
+}
+
+export function generatePageMetadata({ locale, titleKey, descKey, path = "", images }: PageMetadataOptions): Metadata {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL!;
+
+  return {
+    title: titleKey,
+    description: descKey,
+    alternates: {
+      canonical: `${baseUrl}/${locale}${path}`,
+      languages: Object.fromEntries(
+        SUPPORTED_LOCALES.map((l) => [l, `${baseUrl}/${l}${path}`])
+      ),
+    },
+    openGraph: {
+      locale,
+      alternateLocale: SUPPORTED_LOCALES.filter((l) => l !== locale),
+      images: images ?? [`${baseUrl}/og-image.png`],
+    },
+  };
+}
+```
+
+### Web Vitals Reporting — `src/lib/web-vitals.ts`
+
+> Reports Core Web Vitals (CLS, LCP, INP, FCP, TTFB) to your analytics provider.
+
+```ts
+import type { Metric } from "web-vitals";
+
+const vitalsUrl = "/api/analytics/vitals";
+
+export function reportWebVitals(metric: Metric) {
+  const body = {
+    id: metric.id,
+    name: metric.name,
+    value: metric.value,
+    rating: metric.rating,         // "good" | "needs-improvement" | "poor"
+    delta: metric.delta,
+    navigationType: metric.navigationType,
+    page: window.location.pathname, // e.g., /en/products
+  };
+
+  // Use sendBeacon for reliability during page unload
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon(vitalsUrl, JSON.stringify(body));
+  }
+}
 ```
 
 ### TypeScript Config — `tsconfig.json`
@@ -1835,7 +1901,6 @@ mutation RemoveFromCart($cartId: ID!, $itemId: ID!) {
 > Server Component — fetches products on the server using Apollo Client directly. No `"use client"` needed.
 
 ```tsx
-import { Metadata } from "next";
 import client from "@/apollo/client";
 import {
   ProductsDocument,
@@ -1844,11 +1909,15 @@ import {
 } from "@/graphql/generated/graphql";
 import { ProductGrid } from "@/components/product/product-grid";
 import { ProductFilters } from "@/components/product/product-filters";
+import { generatePageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
-  title: "Products",
-  description: "Browse our collection of products",
-};
+// ISR: revalidate product listing every 60 seconds
+export const revalidate = 60;
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  return generatePageMetadata({ locale, titleKey: "products.title", descKey: "products.description" });
+}
 
 interface ProductsPageProps {
   searchParams: Promise<{
@@ -2607,6 +2676,29 @@ Use `output: "standalone"` in Next.js config combined with multi-stage Dockerfil
 
 Automate the quality gates: lint → type-check → test → build on every pull request. Block merges when any step fails.
 
+### 18. Performance — Google PageSpeed Optimization
+
+The architecture is optimized for Core Web Vitals (LCP, CLS, INP):
+
+- **LCP (Largest Contentful Paint):** Use `next/image` with `priority` on above-the-fold hero/product images. Use `<link rel="preconnect">` for the GraphQL API origin. Self-host fonts via `next/font` to eliminate render-blocking requests.
+- **CLS (Cumulative Layout Shift):** Always specify `width` and `height` on images. Use `loading.tsx` skeletons that match final layout dimensions. Avoid client-side-only content that shifts the page.
+- **INP (Interaction to Next Paint):** Use `next/dynamic` with `ssr: false` for heavy client components (product gallery lightbox, rich text editors). Use `useOptimistic` for instant cart/filter interactions.
+- **Caching:** Set `revalidate` on product/category pages for ISR. Use `React.cache()` to deduplicate server-side data fetches. Configure `Cache-Control` headers for static assets.
+- **Bundle size:** Use `@next/bundle-analyzer` to audit dependencies. Lazy-load non-critical components with `next/dynamic`. Tree-shake GraphQL operations via codegen.
+- **Monitoring:** Report Web Vitals to your analytics provider via `lib/web-vitals.ts`. Track per-page, per-locale, and per-store metrics to catch regressions.
+
+### 19. i18n — Locale-Aware Routing
+
+All routes are nested under `[locale]/`. The proxy detects locale from URL → cookie → `Accept-Language` header → store default. Use `next-intl` for server/client translations. Set `<html lang>` and `dir="rtl"` dynamically per locale. Generate `alternates.languages` in metadata for SEO hreflang tags.
+
+### 20. Multi-Currency
+
+Currency is managed via Zustand (`currency.store.ts`) and formatted with `Intl.NumberFormat` in `lib/currency.ts`. Exchange rates are fetched and cached in `services/currency.service.ts`. Each store defines a `defaultCurrency` and `supportedCurrencies`. The checkout flow passes the selected currency to Stripe.
+
+### 21. Multi-Store
+
+Stores are resolved from the request hostname in `proxy.ts`. Each store (`config/stores.ts`) defines its region, domain, default locale, default currency, supported locales/currencies, and optional theme overrides. Store context is available via `stores/store-config.store.ts` and the `useStoreConfig()` hook.
+
 ---
 
 ## Recommended Tech Stack
@@ -2622,7 +2714,8 @@ Automate the quality gates: lint → type-check → test → build on every pull
 |             | CVA                      | Component variant APIs                         |
 | **GraphQL** | Apollo Client            | GraphQL client with caching & React hooks      |
 |             | GraphQL Code Generator   | Auto-generate types & hooks from `.graphql`    |
-| **Data**    | Zustand                  | Lightweight client-side UI state               |
+| **i18n**    | next-intl                | Server/client translations, locale routing     |
+| **Data**    | Zustand                  | Lightweight client-side UI + currency + store state |
 | **Auth**    | Auth.js v5 (NextAuth v5) | OAuth, magic links, credentials                |
 |             | Zod                      | Runtime schema validation                      |
 | **Forms**   | `useActionState`         | React 19 form state with Server Actions        |
@@ -2631,6 +2724,8 @@ Automate the quality gates: lint → type-check → test → build on every pull
 | **Testing** | Vitest                   | Fast unit testing                              |
 |             | Playwright               | Cross-browser E2E testing (locator API)        |
 |             | ESLint 9 + Prettier      | Code quality (flat config) & formatting        |
+| **Perf**    | `@next/bundle-analyzer`  | Audit bundle size & dependency tree            |
+|             | `web-vitals`             | Core Web Vitals monitoring (CLS, LCP, INP)     |
 | **DevOps**  | Docker                   | Multi-stage production builds                  |
 |             | GitHub Actions           | CI/CD pipeline                                 |
 |             | Vercel / AWS             | Deployment with edge functions                 |

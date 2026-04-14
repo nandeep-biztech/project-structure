@@ -437,6 +437,8 @@ const T=[
     {name:"currency.test.ts",type:"util",desc:"Multi-currency formatting tests (USD, EUR, JPY, INR)"},
     {name:"api-client.ts",type:"util",desc:"Type-safe fetch wrapper with auth, retries, store headers"},
     {name:"auth.ts",type:"config",desc:"Auth.js v5 config — exports handlers, auth, signIn, signOut"},
+    {name:"metadata.ts",type:"util",desc:"generatePageMetadata() — locale-aware titles, alternates, openGraph SEO"},
+    {name:"web-vitals.ts",type:"util",desc:"reportWebVitals() — CLS, LCP, INP reporting to analytics"},
     {name:"validations/",children:[
       {name:"user.ts",type:"util",desc:"User Zod schemas (create, update)"},
       {name:"auth.ts",type:"util",desc:"Auth Zod schemas (login, register)"},
@@ -484,7 +486,7 @@ const T=[
     {name:"globals.css",type:"config",desc:"@import 'tailwindcss', @theme config, keyframes"}
   ]},
   {name:"config/",tag:"config",children:[
-    {name:"site.ts",type:"config",desc:"App name, description, URLs"},
+    {name:"site.ts",type:"config",desc:"App name, description, URLs, preconnect origins"},
     {name:"nav.ts",type:"config",desc:"Navigation items (per-store overrides)"},
     {name:"env.ts",type:"config",desc:"Validated environment variables (via Zod)"},
     {name:"currencies.ts",type:"config",desc:"Supported currencies, symbols, decimal rules, formatting"},
