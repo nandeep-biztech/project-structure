@@ -108,19 +108,43 @@ my-enterprise-app/
 │   │   │   └── settings-form.tsx
 │   │   └── providers.tsx               # All context providers composed together
 │   │
-│   ├── apollo/
-│   │   └── client.ts                   # Apollo Client configuration (singleton)
-│   │
-│   ├── graphql/
-│   │   ├── GraphQlProvider.tsx          # ApolloProvider wrapper ("use client")
-│   │   ├── generated/
-│   │   │   └── graphql.ts              # Auto-generated types & hooks (do not edit)
-│   │   └── operation/
-│   │       ├── user.graphql            # User queries & mutations
-│   │       ├── team.graphql            # Team queries & mutations
-│   │       ├── product.graphql         # Product queries (list, detail, search)
-│   │       ├── cart.graphql            # Cart queries & mutations
-│   │       └── auth.graphql            # Auth queries & mutations
+│   ├── data-layer/                     # Backend-agnostic data layer (Adapter + Repository pattern)
+│   │   ├── types/                      # Canonical domain types — independent of any backend
+│   │   │   ├── product.ts              # Product, ProductImage, ProductVariant, ProductFilters
+│   │   │   ├── cart.ts                 # Cart, CartItem, CartSummary
+│   │   │   ├── user.ts                 # User, UserProfile, UserRole
+│   │   │   └── order.ts               # Order, OrderItem, OrderStatus
+│   │   ├── interfaces/                 # Repository contracts — every adapter must implement these
+│   │   │   ├── product.repository.ts   # IProductRepository
+│   │   │   ├── cart.repository.ts      # ICartRepository
+│   │   │   ├── user.repository.ts      # IUserRepository
+│   │   │   └── order.repository.ts     # IOrderRepository
+│   │   ├── adapters/
+│   │   │   ├── magento/                # Magento 2 GraphQL adapter
+│   │   │   │   ├── client.ts           # graphql-request GraphQLClient for Magento
+│   │   │   │   ├── product.adapter.ts  # Implements IProductRepository (queries inline via gql.tada)
+│   │   │   │   ├── cart.adapter.ts     # Implements ICartRepository
+│   │   │   │   ├── user.adapter.ts     # Implements IUserRepository
+│   │   │   │   └── index.ts            # Exports MagentoAdapter
+│   │   │   ├── shopify/                # Shopify Storefront API adapter (GraphQL)
+│   │   │   │   ├── client.ts           # graphql-request GraphQLClient with Storefront auth
+│   │   │   │   ├── product.adapter.ts
+│   │   │   │   ├── cart.adapter.ts
+│   │   │   │   ├── user.adapter.ts
+│   │   │   │   └── index.ts            # Exports ShopifyAdapter
+│   │   │   ├── odoo/                   # Odoo REST API adapter
+│   │   │   │   ├── client.ts           # Authenticated fetch wrapper for Odoo REST
+│   │   │   │   ├── product.adapter.ts
+│   │   │   │   ├── cart.adapter.ts
+│   │   │   │   ├── user.adapter.ts
+│   │   │   │   └── index.ts            # Exports OdooAdapter
+│   │   │   └── custom/                 # Template — copy this to add any new backend
+│   │   │       ├── client.ts           # HTTP client setup (REST or GraphQL)
+│   │   │       ├── product.adapter.ts  # Stub — implement IProductRepository
+│   │   │       ├── cart.adapter.ts     # Stub — implement ICartRepository
+│   │   │       ├── user.adapter.ts     # Stub — implement IUserRepository
+│   │   │       └── index.ts            # Exports CustomAdapter
+│   │   └── factory.ts                  # Resolves active adapter from BACKEND_PROVIDER env var
 │   │
 │   ├── i18n/
 │   │   ├── config.ts                    # Supported locales, default locale, fallback rules
@@ -175,7 +199,7 @@ my-enterprise-app/
 │   │   └── use-local-storage.test.ts   # Read/write/clear localStorage
 │   │
 │   ├── services/
-│   │   ├── user.service.ts            # User queries via Apollo Client (server-side)
+│   │   ├── user.service.ts            # User queries via backend adapter (provider-agnostic)
 │   │   ├── user.service.test.ts       # User service unit test
 │   │   ├── billing.service.ts         # Stripe integration (multi-currency aware)
 │   │   ├── currency.service.ts        # Exchange rate fetching, caching, conversion
@@ -253,7 +277,6 @@ my-enterprise-app/
 │       └── deploy.yml                 # Production deployment
 │
 ├── next.config.ts
-├── codegen.ts                         # GraphQL Code Generator config
 ├── vitest.config.ts                   # Vitest configuration
 ├── tsconfig.json
 ├── eslint.config.mjs                  # ESLint 9 flat config
@@ -472,7 +495,7 @@ export function Button({ className, variant, size, ...props }: ButtonProps) {
 
 ### Providers Composition — `src/components/providers.tsx`
 
-> Composes all client-side providers: Auth, GraphQL (Apollo), Theme, Currency, Store Config, and Toast notifications.
+> Composes all client-side providers: Auth, Theme, Currency, Store Config, and Toast notifications. No GraphQL provider here — the backend adapter is resolved server-side via `getBackend()`, so no client context is needed.
 
 ```tsx
 "use client";
@@ -480,7 +503,6 @@ export function Button({ className, variant, size, ...props }: ButtonProps) {
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/toaster";
-import GraphQlProvider from "@/graphql/GraphQlProvider";
 import { CurrencyProvider } from "@/stores/currency.store";
 import { StoreConfigProvider } from "@/stores/store-config.store";
 import type { StoreConfig } from "@/types/store";
@@ -494,14 +516,12 @@ export function Providers({ children, storeConfig }: ProvidersProps) {
   return (
     <SessionProvider>
       <StoreConfigProvider config={storeConfig}>
-        <GraphQlProvider>
-          <CurrencyProvider defaultCurrency={storeConfig.defaultCurrency}>
-            <ThemeProvider attribute="class" defaultTheme="system">
-              {children}
-              <Toaster />
-            </ThemeProvider>
-          </CurrencyProvider>
-        </GraphQlProvider>
+        <CurrencyProvider defaultCurrency={storeConfig.defaultCurrency}>
+          <ThemeProvider attribute="class" defaultTheme="system">
+            {children}
+            <Toaster />
+          </ThemeProvider>
+        </CurrencyProvider>
       </StoreConfigProvider>
     </SessionProvider>
   );
@@ -587,27 +607,25 @@ export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 
 ### Service Layer — `src/services/user.service.ts`
 
+> Services call repository interfaces via `getBackend()`. They never import Apollo, fetch, or any backend-specific code directly. Swapping backends requires zero changes here.
+
 ```ts
-import client from "@/apollo/client";
-import {
-  UserByIdDocument,
-  UsersDocument,
-  type UserByIdQuery,
-  type UserByIdQueryVariables,
-} from "@/graphql/generated/graphql";
+import { getBackend } from "@/data-layer/factory";
 import { cache } from "react";
 
 export const getUserById = cache(async (id: string) => {
-  const { data } = await client.query<UserByIdQuery, UserByIdQueryVariables>({
-    query: UserByIdDocument,
-    variables: { id },
-  });
-  return data.user;
+  const { users } = getBackend();
+  return users.getUserById(id);
 });
 
-export async function getUsers() {
-  const { data } = await client.query({ query: UsersDocument });
-  return data.users;
+export async function getUsers(page = 1, limit = 20) {
+  const { users } = getBackend();
+  return users.getUsers({ page, limit });
+}
+
+export async function createUser(input: CreateUserInput) {
+  const { users } = getBackend();
+  return users.createUser(input);
 }
 ```
 
@@ -959,8 +977,28 @@ STRIPE_SECRET_KEY="sk_test_..."
 STRIPE_WEBHOOK_SECRET="whsec_..."
 RESEND_API_KEY="re_..."
 
-# GraphQL
-NEXT_PUBLIC_API_BASEURL="http://localhost:1337/graphql"
+# ─── Backend Provider ───────────────────────────────────────────────────────
+# Set ONE provider. Only configure the env vars for the active provider.
+# Options: magento | shopify | odoo | custom
+BACKEND_PROVIDER="magento"
+
+# Magento 2 (GraphQL)
+MAGENTO_GRAPHQL_URL="https://your-magento.com/graphql"
+MAGENTO_ADMIN_TOKEN="your-magento-admin-token"
+
+# Shopify Storefront API (GraphQL)
+SHOPIFY_STOREFRONT_URL="https://your-store.myshopify.com/api/2024-01/graphql.json"
+SHOPIFY_STOREFRONT_TOKEN="your-storefront-api-token"
+
+# Odoo (REST)
+ODOO_BASE_URL="https://your-odoo.com"
+ODOO_DB="your-database-name"
+ODOO_API_KEY="your-odoo-api-key"
+
+# Custom / any other backend
+CUSTOM_API_URL="https://your-api.com"
+CUSTOM_API_KEY="your-api-key"
+# ─────────────────────────────────────────────────────────────────────────────
 
 # Multi-store
 NEXT_PUBLIC_DEFAULT_STORE="us"
@@ -1188,24 +1226,16 @@ describe("useDebounce", () => {
 ```tsx
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { MockedProvider } from "@apollo/client/testing";
 import { AddToCartButton } from "@/components/product/add-to-cart-button";
-import { AddToCartDocument } from "@/graphql/generated/graphql";
 
-const mocks = [
-  {
-    request: {
-      query: AddToCartDocument,
-      variables: {
-        cartId: "cart-1",
-        input: { productId: "prod-1", variantId: undefined, quantity: 1 },
-      },
-    },
-    result: {
-      data: { addToCart: { documentId: "cart-1", itemCount: 1, total: 79.99 } },
-    },
-  },
-];
+// Mock the cart server action — backend-agnostic, no Apollo needed
+vi.mock("@/actions/cart.actions", () => ({
+  addToCartAction: vi.fn().mockResolvedValue({
+    id: "cart-1",
+    itemCount: 1,
+    total: 79.99,
+  }),
+}));
 
 vi.mock("@/stores/cart.store", () => ({
   useCartStore: (selector: (s: { cartId: string }) => string) =>
@@ -1214,21 +1244,13 @@ vi.mock("@/stores/cart.store", () => ({
 
 describe("AddToCartButton", () => {
   it("renders with default quantity of 1", () => {
-    render(
-      <MockedProvider mocks={mocks}>
-        <AddToCartButton productId="prod-1" />
-      </MockedProvider>
-    );
+    render(<AddToCartButton productId="prod-1" />);
     expect(screen.getByText("1")).toBeInTheDocument();
     expect(screen.getByText("Add to Cart")).toBeInTheDocument();
   });
 
   it("increments and decrements quantity", () => {
-    render(
-      <MockedProvider mocks={mocks}>
-        <AddToCartButton productId="prod-1" />
-      </MockedProvider>
-    );
+    render(<AddToCartButton productId="prod-1" />);
     fireEvent.click(screen.getByText("+"));
     expect(screen.getByText("2")).toBeInTheDocument();
 
@@ -1237,21 +1259,13 @@ describe("AddToCartButton", () => {
   });
 
   it("does not go below quantity 1", () => {
-    render(
-      <MockedProvider mocks={mocks}>
-        <AddToCartButton productId="prod-1" />
-      </MockedProvider>
-    );
+    render(<AddToCartButton productId="prod-1" />);
     fireEvent.click(screen.getByText("-"));
     expect(screen.getByText("1")).toBeInTheDocument();
   });
 
   it("shows Out of Stock when disabled", () => {
-    render(
-      <MockedProvider mocks={mocks}>
-        <AddToCartButton productId="prod-1" disabled />
-      </MockedProvider>
-    );
+    render(<AddToCartButton productId="prod-1" disabled />);
     expect(screen.getByText("Out of Stock")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Out of Stock" })).toBeDisabled();
   });
@@ -1274,11 +1288,11 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./tests/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
-    exclude: ["src/graphql/generated/**"],
+    exclude: ["src/data-layer/adapters/**/generated/**"],
     coverage: {
       provider: "v8",
       include: ["src/**/*.{ts,tsx}"],
-      exclude: ["src/**/*.test.{ts,tsx}", "src/graphql/generated/**"],
+      exclude: ["src/**/*.test.{ts,tsx}", "src/data-layer/adapters/**/generated/**"],
     },
   },
 });
@@ -1474,8 +1488,7 @@ export const { GET, POST } = handlers;
 "use server";
 
 import { revalidatePath } from "next/cache";
-import client from "@/apollo/client";
-import { CreateUserDocument } from "@/graphql/generated/graphql";
+import { getBackend } from "@/data-layer/factory";
 import { createUserSchema } from "@/lib/validations/user";
 
 export async function createUser(prevState: unknown, formData: FormData) {
@@ -1489,10 +1502,8 @@ export async function createUser(prevState: unknown, formData: FormData) {
     return { error: parsed.error.flatten().fieldErrors };
   }
 
-  await client.mutate({
-    mutation: CreateUserDocument,
-    variables: { input: parsed.data },
-  });
+  const { users } = getBackend();
+  await users.createUser(parsed.data);
 
   revalidatePath("/users");
   return { success: true };
@@ -1563,194 +1574,580 @@ export default async function UserPage({
 }
 ```
 
-### Apollo Client — `src/apollo/client.ts`
+### Backend Adapter Pattern
+
+> The entire data layer is backend-agnostic. Define canonical domain types and repository interfaces once. Implement them per backend. Switch backends by changing a single env var — zero changes to services, components, or pages.
+
+---
+
+#### Canonical Domain Types — `src/data-layer/types/product.ts`
+
+> These are YOUR types — not Magento types, not Shopify types. Every adapter maps its backend response into these shapes.
 
 ```ts
-import { ApolloClient, InMemoryCache } from "@apollo/client";
+export interface Product {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  price: number;
+  compareAtPrice?: number;
+  currency: string;
+  images: ProductImage[];
+  categories: string[];
+  inStock: boolean;
+  variants?: ProductVariant[];
+}
 
-const client = new ApolloClient({
-  uri: process.env.NEXT_PUBLIC_API_BASEURL,
-  cache: new InMemoryCache(),
+export interface ProductImage {
+  url: string;
+  alt: string;
+  width: number;
+  height: number;
+}
+
+export interface ProductVariant {
+  id: string;
+  sku: string;
+  title: string;
+  price: number;
+  inStock: boolean;
+  attributes: Record<string, string>; // e.g. { color: "red", size: "M" }
+}
+
+export interface ProductFilters {
+  category?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  inStock?: boolean;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  hasNextPage: boolean;
+}
+```
+
+#### Canonical Domain Types — `src/data-layer/types/cart.ts`
+
+```ts
+export interface Cart {
+  id: string;
+  items: CartItem[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  currency: string;
+  itemCount: number;
+}
+
+export interface CartItem {
+  id: string;
+  productId: string;
+  variantId?: string;
+  name: string;
+  image: string;
+  price: number;
+  quantity: number;
+  slug: string;
+}
+```
+
+---
+
+#### Repository Interface — `src/data-layer/interfaces/product.repository.ts`
+
+> The contract. Every adapter must implement this interface exactly. If a backend can't support a method, it throws `NotImplementedError`.
+
+```ts
+import type { Product, ProductFilters, PaginatedResult } from "@/data-layer/types/product";
+
+export interface IProductRepository {
+  getProducts(filters?: ProductFilters): Promise<PaginatedResult<Product>>;
+  getProductBySlug(slug: string): Promise<Product | null>;
+  getProductCategories(): Promise<Category[]>;
+}
+```
+
+#### Repository Interface — `src/data-layer/interfaces/cart.repository.ts`
+
+```ts
+import type { Cart } from "@/data-layer/types/cart";
+
+export interface ICartRepository {
+  getCart(cartId: string): Promise<Cart | null>;
+  createCart(): Promise<Cart>;
+  addItem(cartId: string, productId: string, quantity: number, variantId?: string): Promise<Cart>;
+  updateItem(cartId: string, itemId: string, quantity: number): Promise<Cart>;
+  removeItem(cartId: string, itemId: string): Promise<Cart>;
+  clearCart(cartId: string): Promise<void>;
+}
+```
+
+#### Repository Interface — `src/data-layer/interfaces/user.repository.ts`
+
+```ts
+import type { User } from "@/data-layer/types/user";
+
+export interface IUserRepository {
+  getUsers(opts?: { page?: number; limit?: number }): Promise<PaginatedResult<User>>;
+  getUserById(id: string): Promise<User | null>;
+  createUser(input: CreateUserInput): Promise<User>;
+  updateUser(id: string, input: UpdateUserInput): Promise<User>;
+  deleteUser(id: string): Promise<void>;
+}
+```
+
+---
+
+#### Backend Factory — `src/data-layer/factory.ts`
+
+> Reads `BACKEND_PROVIDER` at startup and returns the correct adapter. Called once — result is cached in module scope.
+
+```ts
+import type { IProductRepository } from "./interfaces/product.repository";
+import type { ICartRepository } from "./interfaces/cart.repository";
+import type { IUserRepository } from "./interfaces/user.repository";
+
+export interface BackendAdapter {
+  products: IProductRepository;
+  cart: ICartRepository;
+  users: IUserRepository;
+}
+
+let _backend: BackendAdapter | null = null;
+
+export function getBackend(): BackendAdapter {
+  if (_backend) return _backend;
+
+  const provider = process.env.BACKEND_PROVIDER;
+
+  switch (provider) {
+    case "magento":
+      _backend = require("./adapters/magento").MagentoAdapter;
+      break;
+    case "shopify":
+      _backend = require("./adapters/shopify").ShopifyAdapter;
+      break;
+    case "odoo":
+      _backend = require("./adapters/odoo").OdooAdapter;
+      break;
+    case "custom":
+    default:
+      _backend = require("./adapters/custom").CustomAdapter;
+      break;
+  }
+
+  if (!_backend) {
+    throw new Error(
+      `Unknown BACKEND_PROVIDER: "${provider}". Valid options: magento | shopify | odoo | custom`
+    );
+  }
+
+  return _backend;
+}
+```
+
+---
+
+#### Magento Adapter — `src/data-layer/adapters/magento/client.ts`
+
+> Uses `graphql-request` (5KB) instead of Apollo (~40KB). Custom `fetch` override wires into Next.js's native cache for free ISR/tags/revalidation.
+
+```ts
+import { GraphQLClient } from "graphql-request";
+
+if (!process.env.MAGENTO_GRAPHQL_URL) {
+  throw new Error("MAGENTO_GRAPHQL_URL is not set");
+}
+
+export const magentoClient = new GraphQLClient(process.env.MAGENTO_GRAPHQL_URL, {
+  headers: { Authorization: `Bearer ${process.env.MAGENTO_ADMIN_TOKEN}` },
+  fetch: (url, init) =>
+    fetch(url, { ...init, next: { revalidate: 60, tags: ["magento"] } }),
 });
-
-export default client;
 ```
 
-### GraphQL Provider — `src/graphql/GraphQlProvider.tsx`
+#### Magento Adapter — `src/data-layer/adapters/magento/product.adapter.ts`
 
-> Wraps the app with `ApolloProvider`. Must be a client component since Apollo hooks require React context.
-
-```tsx
-"use client";
-
-import { ApolloProvider } from "@apollo/client";
-import client from "@/apollo/client";
-
-export default function GraphQlProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return <ApolloProvider client={client}>{children}</ApolloProvider>;
-}
-```
-
-### GraphQL Code Generator — `codegen.ts`
-
-> Reads `.graphql` operation files and auto-generates TypeScript types + React Apollo hooks into a single file.
+> Queries are inline via `gql.tada` — no codegen step, no `generated/` folder. Types are inferred at edit time via the `@0no-co/graphqlsp` LSP plugin.
 
 ```ts
-import type { CodegenConfig } from "@graphql-codegen/cli";
+import { graphql } from "gql.tada";
+import { magentoClient } from "./client";
+import type { IProductRepository } from "@/data-layer/interfaces/product.repository";
+import type { Product, ProductFilters, PaginatedResult } from "@/data-layer/types/product";
 
-const schemaUrl = process.env.NEXT_PUBLIC_API_BASEURL;
+const ProductsQuery = graphql(`
+  query Products($pageSize: Int!, $currentPage: Int!, $filter: ProductAttributeFilterInput) {
+    products(pageSize: $pageSize, currentPage: $currentPage, filter: $filter) {
+      total_count
+      page_info { current_page page_size }
+      items {
+        uid
+        name
+        url_key
+        description { html }
+        stock_status
+        price_range { minimum_price { regular_price { value currency } } }
+        media_gallery { url label }
+        categories { name }
+      }
+    }
+  }
+`);
 
-if (!schemaUrl) {
-  throw new Error("NEXT_PUBLIC_API_BASEURL is not set in .env.local");
+const ProductByUrlKeyQuery = graphql(`
+  query ProductByUrlKey($urlKey: String!) {
+    products(filter: { url_key: { eq: $urlKey } }) {
+      items {
+        uid name url_key description { html } stock_status
+        price_range { minimum_price { regular_price { value currency } } }
+        media_gallery { url label }
+        categories { name }
+      }
+    }
+  }
+`);
+
+export class MagentoProductAdapter implements IProductRepository {
+  async getProducts(filters?: ProductFilters): Promise<PaginatedResult<Product>> {
+    const data = await magentoClient.request(ProductsQuery, {
+      pageSize: filters?.limit ?? 20,
+      currentPage: filters?.page ?? 1,
+      filter: filters?.category ? { category_uid: { eq: filters.category } } : {},
+    });
+
+    return {
+      items: data.products.items.map(normalizeMagentoProduct),
+      total: data.products.total_count,
+      page: filters?.page ?? 1,
+      limit: filters?.limit ?? 20,
+      hasNextPage: (filters?.page ?? 1) * (filters?.limit ?? 20) < data.products.total_count,
+    };
+  }
+
+  async getProductBySlug(slug: string): Promise<Product | null> {
+    const data = await magentoClient.request(ProductByUrlKeyQuery, { urlKey: slug });
+    const item = data.products.items[0];
+    return item ? normalizeMagentoProduct(item) : null;
+  }
+
+  async getProductCategories() {
+    return []; // implement with CategoryListQuery
+  }
 }
 
-const config: CodegenConfig = {
-  schema: schemaUrl,
-  documents: ["src/graphql/operation/**/*.graphql"],
-  generates: {
-    "src/graphql/generated/graphql.ts": {
-      plugins: [
-        "typescript",
-        "typescript-operations",
-        "typescript-react-apollo",
-      ],
-      config: {
-        useTypeImports: true,
-      },
-    },
+// Normalization — keeps Magento field names out of your app
+function normalizeMagentoProduct(item: any): Product {
+  return {
+    id: item.uid,
+    slug: item.url_key,                         // Magento uses url_key, not slug
+    name: item.name,
+    description: item.description?.html ?? "",
+    price: item.price_range.minimum_price.regular_price.value,
+    currency: item.price_range.minimum_price.regular_price.currency,
+    inStock: item.stock_status === "IN_STOCK",  // Magento uses stock_status enum
+    images: item.media_gallery.map((img: any) => ({
+      url: img.url,
+      alt: img.label ?? item.name,
+      width: 800,
+      height: 800,
+    })),
+    categories: item.categories?.map((c: any) => c.name) ?? [],
+    variants: [],
+  };
+}
+```
+
+---
+
+#### Shopify Adapter — `src/data-layer/adapters/shopify/client.ts`
+
+```ts
+import { GraphQLClient } from "graphql-request";
+
+export const shopifyClient = new GraphQLClient(process.env.SHOPIFY_STOREFRONT_URL!, {
+  headers: {
+    "X-Shopify-Storefront-Access-Token": process.env.SHOPIFY_STOREFRONT_TOKEN!,
+    "Content-Type": "application/json",
   },
-};
-
-export default config;
+  fetch: (url, init) =>
+    fetch(url, { ...init, next: { revalidate: 60, tags: ["shopify"] } }),
+});
 ```
 
-### GraphQL Operations — `src/graphql/operation/user.graphql`
+#### Shopify Adapter — `src/data-layer/adapters/shopify/product.adapter.ts`
 
-> Define queries, mutations, and fragments in `.graphql` files. One file per entity. The codegen will generate typed hooks automatically.
+```ts
+import { graphql } from "gql.tada";
+import { shopifyClient } from "./client";
+import type { IProductRepository } from "@/data-layer/interfaces/product.repository";
+import type { Product, ProductFilters, PaginatedResult } from "@/data-layer/types/product";
 
-```graphql
-query Users {
-  users {
-    id
-    name
-    email
-    role
-    createdAt
-    updatedAt
-  }
-}
-
-query UserById($id: ID!) {
-  user(id: $id) {
-    id
-    name
-    email
-    role
-    profile {
-      avatar
-      bio
+const ProductsQuery = graphql(`
+  query Products($first: Int!) {
+    products(first: $first) {
+      pageInfo { hasNextPage }
+      edges {
+        node {
+          id handle title description availableForSale
+          priceRange { minVariantPrice { amount currencyCode } }
+          images(first: 10) { edges { node { url altText width height } } }
+          collections(first: 5) { edges { node { title } } }
+          variants(first: 50) {
+            edges {
+              node {
+                id sku title availableForSale
+                price { amount }
+                selectedOptions { name value }
+              }
+            }
+          }
+        }
+      }
     }
-    teams {
-      id
-      name
+  }
+`);
+
+const ProductByHandleQuery = graphql(`
+  query ProductByHandle($handle: String!) {
+    product(handle: $handle) {
+      id handle title description availableForSale
+      priceRange { minVariantPrice { amount currencyCode } }
+      images(first: 10) { edges { node { url altText width height } } }
+      collections(first: 5) { edges { node { title } } }
     }
   }
-}
+`);
 
-mutation CreateUser($input: CreateUserInput!) {
-  createUser(input: $input) {
-    id
-    name
-    email
+export class ShopifyProductAdapter implements IProductRepository {
+  async getProducts(filters?: ProductFilters): Promise<PaginatedResult<Product>> {
+    const data = await shopifyClient.request(ProductsQuery, { first: filters?.limit ?? 20 });
+
+    return {
+      items: data.products.edges.map((e) => normalizeShopifyProduct(e.node)),
+      total: data.products.edges.length,
+      page: 1,
+      limit: filters?.limit ?? 20,
+      hasNextPage: data.products.pageInfo.hasNextPage,
+    };
+  }
+
+  async getProductBySlug(slug: string): Promise<Product | null> {
+    // Shopify uses handle, not slug
+    const data = await shopifyClient.request(ProductByHandleQuery, { handle: slug });
+    return data.product ? normalizeShopifyProduct(data.product) : null;
+  }
+
+  async getProductCategories() {
+    return []; // Use Shopify Collections as categories
   }
 }
 
-mutation UpdateUser($id: ID!, $input: UpdateUserInput!) {
-  updateUser(id: $id, input: $input) {
-    id
-    name
-    email
-  }
-}
-
-mutation DeleteUser($id: ID!) {
-  deleteUser(id: $id) {
-    id
-  }
+function normalizeShopifyProduct(node: any): Product {
+  return {
+    id: node.id,
+    slug: node.handle,                          // Shopify uses handle, not slug
+    name: node.title,
+    description: node.description,
+    price: parseFloat(node.priceRange.minVariantPrice.amount),
+    currency: node.priceRange.minVariantPrice.currencyCode,
+    inStock: node.availableForSale,             // Shopify uses availableForSale
+    images: node.images.edges.map((e: any) => ({
+      url: e.node.url,
+      alt: e.node.altText ?? node.title,
+      width: e.node.width ?? 800,
+      height: e.node.height ?? 800,
+    })),
+    categories: node.collections?.edges.map((e: any) => e.node.title) ?? [],
+    variants: node.variants.edges.map((e: any) => ({
+      id: e.node.id,
+      sku: e.node.sku,
+      title: e.node.title,
+      price: parseFloat(e.node.price.amount),
+      inStock: e.node.availableForSale,
+      attributes: Object.fromEntries(
+        e.node.selectedOptions.map((o: any) => [o.name.toLowerCase(), o.value])
+      ),
+    })),
+  };
 }
 ```
 
-### Using Generated Hooks in Components
+---
 
-> After running `pnpm codegen`, import the auto-generated hooks. Each query gets three hooks: `useXxxQuery`, `useXxxLazyQuery`, and `useXxxSuspenseQuery`.
+#### Odoo Adapter — `src/data-layer/adapters/odoo/client.ts`
 
-```tsx
-"use client";
+```ts
+const ODOO_BASE = process.env.ODOO_BASE_URL!;
+const ODOO_DB   = process.env.ODOO_DB!;
+const ODOO_KEY  = process.env.ODOO_API_KEY!;
 
-import { useUsersQuery } from "@/graphql/generated/graphql";
-
-export default function UsersList() {
-  const { data, loading, error } = useUsersQuery();
-
-  if (loading) return <p>Loading users...</p>;
-  if (error) return <p>Error: {error.message}</p>;
-  if (!data?.users) return <p>No users found</p>;
-
-  return (
-    <div>
-      <h2>Users</h2>
-      {data.users.map((user) => (
-        <div key={user.id}>
-          <h3>{user.name}</h3>
-          <p>{user.email}</p>
-          <span>{user.role}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-```
-
-### Using Generated Mutation Hooks
-
-```tsx
-"use client";
-
-import { useCreateUserMutation } from "@/graphql/generated/graphql";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-
-export function CreateUserForm() {
-  const [createUser, { loading, error }] = useCreateUserMutation({
-    refetchQueries: ["Users"],
+export async function odooFetch<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const res = await fetch(`${ODOO_BASE}${endpoint}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": ODOO_KEY,
+      "db": ODOO_DB,
+      ...options.headers,
+    },
   });
 
-  async function handleSubmit(formData: FormData) {
-    await createUser({
-      variables: {
-        input: {
-          name: formData.get("name") as string,
-          email: formData.get("email") as string,
-          role: formData.get("role") as string,
-        },
-      },
-    });
+  if (!res.ok) {
+    throw new Error(`Odoo API error: ${res.status} ${res.statusText}`);
   }
 
+  return res.json() as T;
+}
+```
+
+#### Odoo Adapter — `src/data-layer/adapters/odoo/product.adapter.ts`
+
+```ts
+import { odooFetch } from "./client";
+import type { IProductRepository } from "@/data-layer/interfaces/product.repository";
+import type { Product, ProductFilters, PaginatedResult } from "@/data-layer/types/product";
+
+export class OdooProductAdapter implements IProductRepository {
+  async getProducts(filters?: ProductFilters): Promise<PaginatedResult<Product>> {
+    const params = new URLSearchParams({
+      page: String(filters?.page ?? 1),
+      page_size: String(filters?.limit ?? 20),
+      ...(filters?.category && { category: filters.category }),
+      ...(filters?.search && { name: filters.search }),
+    });
+
+    const data = await odooFetch<OdooProductListResponse>(`/api/v1/products?${params}`);
+
+    return {
+      items: data.results.map(normalizeOdooProduct),
+      total: data.count,
+      page: filters?.page ?? 1,
+      limit: filters?.limit ?? 20,
+      hasNextPage: !!data.next,
+    };
+  }
+
+  async getProductBySlug(slug: string): Promise<Product | null> {
+    try {
+      const data = await odooFetch<OdooProduct>(`/api/v1/products/${slug}`);
+      return normalizeOdooProduct(data);
+    } catch {
+      return null;
+    }
+  }
+
+  async getProductCategories() {
+    const data = await odooFetch<{ results: any[] }>("/api/v1/product-categories");
+    return data.results.map((c) => ({ id: c.id, name: c.name, slug: c.slug }));
+  }
+}
+
+function normalizeOdooProduct(item: any): Product {
+  return {
+    id: String(item.id),
+    slug: item.website_slug ?? String(item.id),
+    name: item.name,
+    description: item.description_sale ?? "",
+    price: item.list_price,
+    currency: item.currency_id?.[1] ?? "USD",
+    inStock: item.qty_available > 0,
+    images: item.image_1920
+      ? [{ url: `${process.env.ODOO_BASE_URL}/web/image/product.product/${item.id}/image_1920`, alt: item.name, width: 800, height: 800 }]
+      : [],
+    categories: item.categ_id ? [item.categ_id[1]] : [],
+    variants: [],
+  };
+}
+```
+
+---
+
+#### Exporting the Adapter — `src/data-layer/adapters/magento/index.ts`
+
+```ts
+import { MagentoProductAdapter } from "./product.adapter";
+import { MagentoCartAdapter } from "./cart.adapter";
+import { MagentoUserAdapter } from "./user.adapter";
+import type { BackendAdapter } from "@/data-layer/factory";
+
+export const MagentoAdapter: BackendAdapter = {
+  products: new MagentoProductAdapter(),
+  cart: new MagentoCartAdapter(),
+  users: new MagentoUserAdapter(),
+};
+```
+
+---
+
+#### Using the Adapter in a Server Component
+
+```tsx
+// src/app/(shop)/products/page.tsx
+import { getProducts } from "@/services/product.service";
+
+export default async function ProductsPage({ searchParams }: { searchParams: Promise<{ category?: string }> }) {
+  const { category } = await searchParams;
+  const { items, total } = await getProducts({ category });  // backend-agnostic
+
   return (
-    <form action={handleSubmit}>
-      <Input name="name" placeholder="Name" required />
-      <Input name="email" type="email" placeholder="Email" required />
-      {error && <p className="text-sm text-destructive">{error.message}</p>}
-      <Button type="submit" disabled={loading}>
-        {loading ? "Creating..." : "Create User"}
-      </Button>
-    </form>
+    <main>
+      <p>{total} products</p>
+      <ProductGrid products={items} />
+    </main>
   );
+}
+```
+
+#### Using the Adapter in a Server Action
+
+```ts
+// src/actions/cart.actions.ts
+"use server";
+
+import { getBackend } from "@/data-layer/factory";
+import { revalidatePath } from "next/cache";
+
+export async function addToCartAction(cartId: string, productId: string, quantity: number) {
+  const { cart } = getBackend();
+  const updatedCart = await cart.addItem(cartId, productId, quantity);
+  revalidatePath("/cart");
+  return updatedCart;
+}
+```
+
+#### Adding a New Backend (Custom Template) — `src/data-layer/adapters/custom/product.adapter.ts`
+
+```ts
+import type { IProductRepository } from "@/data-layer/interfaces/product.repository";
+import type { Product, ProductFilters, PaginatedResult } from "@/data-layer/types/product";
+
+export class CustomProductAdapter implements IProductRepository {
+  async getProducts(filters?: ProductFilters): Promise<PaginatedResult<Product>> {
+    // TODO: implement with your API
+    throw new Error("Not implemented");
+  }
+
+  async getProductBySlug(slug: string): Promise<Product | null> {
+    // TODO: implement with your API
+    throw new Error("Not implemented");
+  }
+
+  async getProductCategories() {
+    // TODO: implement with your API
+    throw new Error("Not implemented");
+  }
 }
 ```
 
@@ -1758,155 +2155,49 @@ export function CreateUserForm() {
 
 ## Ecommerce Examples
 
-### GraphQL Operations — `src/graphql/operation/product.graphql`
+> All ecommerce examples use the Backend Adapter Pattern. Pages and components import canonical types from `src/data-layer/types/` — never from backend-specific generated files. The active backend is resolved transparently via `getBackend()`.
 
-```graphql
-query Products($filters: ProductFiltersInput, $sort: [String], $pagination: PaginationArg) {
-  products(filters: $filters, sort: $sort, pagination: $pagination) {
-    documentId
-    name
-    slug
-    description
-    price
-    compareAtPrice
-    inStock
-    category {
-      documentId
-      name
-      slug
-    }
-    images {
-      url
-      alternativeText
-      width
-      height
-    }
-    createdAt
-  }
-}
+### Product Service — `src/services/product.service.ts`
 
-query ProductBySlug($slug: String!) {
-  products(filters: { slug: { eq: $slug } }) {
-    documentId
-    name
-    slug
-    description
-    price
-    compareAtPrice
-    inStock
-    sku
-    category {
-      documentId
-      name
-      slug
-    }
-    images {
-      url
-      alternativeText
-      width
-      height
-    }
-    variants {
-      documentId
-      name
-      price
-      inStock
-      options {
-        name
-        value
-      }
-    }
-    relatedProducts {
-      documentId
-      name
-      slug
-      price
-      images {
-        url
-        alternativeText
-      }
-    }
-  }
-}
+```ts
+import { getBackend } from "@/data-layer/factory";
+import { cache } from "react";
+import type { ProductFilters } from "@/data-layer/types/product";
 
-query ProductCategories {
-  categories {
-    documentId
-    name
-    slug
-    productCount
-  }
-}
+export const getProducts = cache(async (filters?: ProductFilters) => {
+  const { products } = getBackend();
+  return products.getProducts(filters);
+});
+
+export const getProductBySlug = cache(async (slug: string) => {
+  const { products } = getBackend();
+  return products.getProductBySlug(slug);
+});
+
+export const getProductCategories = cache(async () => {
+  const { products } = getBackend();
+  return products.getProductCategories();
+});
 ```
 
-### GraphQL Operations — `src/graphql/operation/cart.graphql`
+### Cart Service — `src/services/cart.service.ts`
 
-```graphql
-query Cart($cartId: ID!) {
-  cart(documentId: $cartId) {
-    documentId
-    items {
-      documentId
-      product {
-        documentId
-        name
-        slug
-        price
-        images {
-          url
-          alternativeText
-        }
-      }
-      variant {
-        documentId
-        name
-      }
-      quantity
-      lineTotal
-    }
-    subtotal
-    tax
-    total
-    itemCount
-  }
-}
+```ts
+import { getBackend } from "@/data-layer/factory";
+import { cache } from "react";
 
-mutation AddToCart($cartId: ID!, $input: CartItemInput!) {
-  addToCart(cartId: $cartId, input: $input) {
-    documentId
-    itemCount
-    total
-  }
-}
-
-mutation UpdateCartItem($cartId: ID!, $itemId: ID!, $quantity: Int!) {
-  updateCartItem(cartId: $cartId, itemId: $itemId, quantity: $quantity) {
-    documentId
-    itemCount
-    total
-  }
-}
-
-mutation RemoveFromCart($cartId: ID!, $itemId: ID!) {
-  removeFromCart(cartId: $cartId, itemId: $itemId) {
-    documentId
-    itemCount
-    total
-  }
-}
+export const getCart = cache(async (cartId: string) => {
+  const { cart } = getBackend();
+  return cart.getCart(cartId);
+});
 ```
 
 ### Product List Page — `src/app/(shop)/products/page.tsx`
 
-> Server Component — fetches products on the server using Apollo Client directly. No `"use client"` needed.
+> Server Component — fetches products via the backend-agnostic service. Works with Magento, Shopify, Odoo, or any adapter.
 
 ```tsx
-import client from "@/apollo/client";
-import {
-  ProductsDocument,
-  type ProductsQuery,
-  type ProductsQueryVariables,
-} from "@/graphql/generated/graphql";
+import { getProducts } from "@/services/product.service";
 import { ProductGrid } from "@/components/product/product-grid";
 import { ProductFilters } from "@/components/product/product-filters";
 import { generatePageMetadata } from "@/lib/metadata";
@@ -1922,7 +2213,6 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 interface ProductsPageProps {
   searchParams: Promise<{
     category?: string;
-    sort?: string;
     minPrice?: string;
     maxPrice?: string;
     page?: string;
@@ -1930,38 +2220,25 @@ interface ProductsPageProps {
 }
 
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
-  const { category, sort, minPrice, maxPrice, page } = await searchParams;
+  const { category, minPrice, maxPrice, page } = await searchParams;
 
-  const { data } = await client.query<ProductsQuery, ProductsQueryVariables>({
-    query: ProductsDocument,
-    variables: {
-      filters: {
-        ...(category && { category: { slug: { eq: category } } }),
-        ...(minPrice && { price: { gte: parseFloat(minPrice) } }),
-        ...(maxPrice && { price: { lte: parseFloat(maxPrice) } }),
-      },
-      sort: sort ? [sort] : ["createdAt:desc"],
-      pagination: {
-        page: page ? parseInt(page) : 1,
-        pageSize: 12,
-      },
-    },
+  const { items, total } = await getProducts({
+    category,
+    minPrice: minPrice ? parseFloat(minPrice) : undefined,
+    maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
+    page: page ? parseInt(page) : 1,
+    limit: 12,
   });
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Products</h1>
+      <h1 className="text-3xl font-bold mb-8">Products ({total})</h1>
       <div className="flex gap-8">
         <aside className="w-64 shrink-0">
-          <ProductFilters
-            activeCategory={category}
-            minPrice={minPrice}
-            maxPrice={maxPrice}
-            activeSort={sort}
-          />
+          <ProductFilters activeCategory={category} minPrice={minPrice} maxPrice={maxPrice} />
         </aside>
         <main className="flex-1">
-          <ProductGrid products={data.products} />
+          <ProductGrid products={items} />
         </main>
       </div>
     </div>
@@ -2002,15 +2279,15 @@ export default function ProductsLoading() {
 ### Product Grid — `src/components/product/product-grid.tsx`
 
 ```tsx
-import type { ProductsQuery } from "@/graphql/generated/graphql";
+import type { Product } from "@/data-layer/types/product";
 import { ProductCard } from "./product-card";
 
 interface ProductGridProps {
-  products: ProductsQuery["products"];
+  products: Product[];
 }
 
 export function ProductGrid({ products }: ProductGridProps) {
-  if (!products || products.length === 0) {
+  if (products.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
         <p className="text-lg">No products found</p>
@@ -2022,7 +2299,7 @@ export function ProductGrid({ products }: ProductGridProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       {products.map((product) => (
-        <ProductCard key={product.documentId} product={product} />
+        <ProductCard key={product.id} product={product} />
       ))}
     </div>
   );
@@ -2034,11 +2311,9 @@ export function ProductGrid({ products }: ProductGridProps) {
 ```tsx
 import Image from "next/image";
 import Link from "next/link";
-import type { ProductsQuery } from "@/graphql/generated/graphql";
+import type { Product } from "@/data-layer/types/product";
 import { Badge } from "@/components/ui/badge";
 import { formatPrice } from "@/lib/utils";
-
-type Product = NonNullable<ProductsQuery["products"]>[number];
 
 interface ProductCardProps {
   product: Product;
@@ -2049,15 +2324,12 @@ export function ProductCard({ product }: ProductCardProps) {
   const hasDiscount = product.compareAtPrice && product.compareAtPrice > product.price;
 
   return (
-    <Link
-      href={`/products/${product.slug}`}
-      className="group block space-y-3"
-    >
+    <Link href={`/products/${product.slug}`} className="group block space-y-3">
       <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
         {image ? (
           <Image
             src={image.url}
-            alt={image.alternativeText || product.name}
+            alt={image.alt}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="object-cover transition-transform group-hover:scale-105"
@@ -2067,11 +2339,8 @@ export function ProductCard({ product }: ProductCardProps) {
             No image
           </div>
         )}
-
         {!product.inStock && (
-          <Badge variant="destructive" className="absolute top-2 right-2">
-            Out of stock
-          </Badge>
+          <Badge variant="destructive" className="absolute top-2 right-2">Out of stock</Badge>
         )}
         {hasDiscount && (
           <Badge className="absolute top-2 left-2">Sale</Badge>
@@ -2088,10 +2357,8 @@ export function ProductCard({ product }: ProductCardProps) {
             </span>
           )}
         </div>
-        {product.category && (
-          <p className="text-sm text-muted-foreground mt-1">
-            {product.category.name}
-          </p>
+        {product.categories[0] && (
+          <p className="text-sm text-muted-foreground mt-1">{product.categories[0]}</p>
         )}
       </div>
     </Link>
@@ -2101,50 +2368,36 @@ export function ProductCard({ product }: ProductCardProps) {
 
 ### Product Detail Page — `src/app/(shop)/products/[slug]/page.tsx`
 
-> Server Component with `generateMetadata` for SEO. Fetches product by slug and renders the detail view.
+> Server Component with `generateMetadata` for SEO. Uses canonical `Product` type — works with any active backend.
 
 ```tsx
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import client from "@/apollo/client";
-import {
-  ProductBySlugDocument,
-  type ProductBySlugQuery,
-  type ProductBySlugQueryVariables,
-} from "@/graphql/generated/graphql";
+import { getProductBySlug } from "@/services/product.service";
 import { ProductGallery } from "@/components/product/product-gallery";
 import { ProductInfo } from "@/components/product/product-info";
-import { ProductGrid } from "@/components/product/product-grid";
 
 interface ProductPageProps {
   params: Promise<{ slug: string }>;
 }
 
-async function getProduct(slug: string) {
-  const { data } = await client.query<ProductBySlugQuery, ProductBySlugQueryVariables>({
-    query: ProductBySlugDocument,
-    variables: { slug },
-  });
-  return data.products?.[0] ?? null;
-}
-
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const product = await getProduct(slug);
+  const product = await getProductBySlug(slug);
 
   if (!product) return { title: "Product Not Found" };
 
   return {
     title: product.name,
-    description: product.description?.slice(0, 160),
+    description: product.description.slice(0, 160),
     openGraph: {
       title: product.name,
-      description: product.description ?? undefined,
-      images: product.images?.map((img) => ({
+      description: product.description,
+      images: product.images.map((img) => ({
         url: img.url,
-        width: img.width ?? undefined,
-        height: img.height ?? undefined,
-        alt: img.alternativeText ?? product.name,
+        width: img.width,
+        height: img.height,
+        alt: img.alt,
       })),
     },
   };
@@ -2152,7 +2405,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 
 export default async function ProductPage({ params }: ProductPageProps) {
   const { slug } = await params;
-  const product = await getProduct(slug);
+  const product = await getProductBySlug(slug);
 
   if (!product) notFound();
 
@@ -2162,13 +2415,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
         <ProductGallery images={product.images} />
         <ProductInfo product={product} />
       </div>
-
-      {product.relatedProducts && product.relatedProducts.length > 0 && (
-        <section className="mt-16">
-          <h2 className="text-2xl font-bold mb-6">Related Products</h2>
-          <ProductGrid products={product.relatedProducts} />
-        </section>
-      )}
     </div>
   );
 }
@@ -2206,20 +2452,16 @@ export default function ProductDetailLoading() {
 import { useState } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import type { ProductImage } from "@/data-layer/types/product";
 
 interface ProductGalleryProps {
-  images: Array<{
-    url: string;
-    alternativeText?: string | null;
-    width?: number | null;
-    height?: number | null;
-  }> | null | undefined;
+  images: ProductImage[];
 }
 
 export function ProductGallery({ images }: ProductGalleryProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  if (!images || images.length === 0) {
+  if (images.length === 0) {
     return (
       <div className="aspect-square bg-muted rounded-lg flex items-center justify-center text-muted-foreground">
         No images available
@@ -2234,7 +2476,7 @@ export function ProductGallery({ images }: ProductGalleryProps) {
       <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
         <Image
           src={selectedImage.url}
-          alt={selectedImage.alternativeText || "Product image"}
+          alt={selectedImage.alt}
           fill
           sizes="(max-width: 768px) 100vw, 50vw"
           className="object-cover"
@@ -2255,13 +2497,7 @@ export function ProductGallery({ images }: ProductGalleryProps) {
                   : "border-transparent opacity-70 hover:opacity-100"
               )}
             >
-              <Image
-                src={image.url}
-                alt={image.alternativeText || `Thumbnail ${index + 1}`}
-                fill
-                sizes="80px"
-                className="object-cover"
-              />
+              <Image src={image.url} alt={image.alt} fill sizes="80px" className="object-cover" />
             </button>
           ))}
         </div>
@@ -2274,12 +2510,10 @@ export function ProductGallery({ images }: ProductGalleryProps) {
 ### Product Info — `src/components/product/product-info.tsx`
 
 ```tsx
-import type { ProductBySlugQuery } from "@/graphql/generated/graphql";
+import type { Product } from "@/data-layer/types/product";
 import { Badge } from "@/components/ui/badge";
 import { AddToCartButton } from "./add-to-cart-button";
 import { formatPrice } from "@/lib/utils";
-
-type Product = NonNullable<ProductBySlugQuery["products"]>[number];
 
 interface ProductInfoProps {
   product: Product;
@@ -2293,10 +2527,8 @@ export function ProductInfo({ product }: ProductInfoProps) {
 
   return (
     <div className="flex flex-col">
-      {product.category && (
-        <p className="text-sm text-muted-foreground mb-2">
-          {product.category.name}
-        </p>
+      {product.categories[0] && (
+        <p className="text-sm text-muted-foreground mb-2">{product.categories[0]}</p>
       )}
 
       <h1 className="text-3xl font-bold">{product.name}</h1>
@@ -2315,29 +2547,18 @@ export function ProductInfo({ product }: ProductInfoProps) {
 
       <div className="mt-2">
         {product.inStock ? (
-          <Badge variant="outline" className="text-green-600 border-green-600">
-            In stock
-          </Badge>
+          <Badge variant="outline" className="text-green-600 border-green-600">In stock</Badge>
         ) : (
           <Badge variant="destructive">Out of stock</Badge>
         )}
       </div>
 
       {product.description && (
-        <p className="text-muted-foreground mt-6 leading-relaxed">
-          {product.description}
-        </p>
-      )}
-
-      {product.sku && (
-        <p className="text-sm text-muted-foreground mt-4">SKU: {product.sku}</p>
+        <p className="text-muted-foreground mt-6 leading-relaxed">{product.description}</p>
       )}
 
       <div className="mt-8">
-        <AddToCartButton
-          productId={product.documentId}
-          disabled={!product.inStock}
-        />
+        <AddToCartButton productId={product.id} disabled={!product.inStock} />
       </div>
     </div>
   );
@@ -2346,11 +2567,13 @@ export function ProductInfo({ product }: ProductInfoProps) {
 
 ### Add to Cart Button — `src/components/product/add-to-cart-button.tsx`
 
+> Uses a Server Action (`addToCartAction`) — no GraphQL hooks, no Apollo, backend-agnostic.
+
 ```tsx
 "use client";
 
-import { useState } from "react";
-import { useAddToCartMutation } from "@/graphql/generated/graphql";
+import { useState, useTransition } from "react";
+import { addToCartAction } from "@/actions/cart.actions";
 import { useCartStore } from "@/stores/cart.store";
 import { Button } from "@/components/ui/button";
 
@@ -2362,17 +2585,12 @@ interface AddToCartButtonProps {
 
 export function AddToCartButton({ productId, variantId, disabled }: AddToCartButtonProps) {
   const [quantity, setQuantity] = useState(1);
+  const [isPending, startTransition] = useTransition();
   const cartId = useCartStore((s) => s.cartId);
-  const [addToCart, { loading }] = useAddToCartMutation({
-    refetchQueries: ["Cart"],
-  });
 
-  async function handleAddToCart() {
-    await addToCart({
-      variables: {
-        cartId,
-        input: { productId, variantId, quantity },
-      },
+  function handleAddToCart() {
+    startTransition(async () => {
+      await addToCartAction(cartId, productId, quantity, variantId);
     });
   }
 
@@ -2397,10 +2615,10 @@ export function AddToCartButton({ productId, variantId, disabled }: AddToCartBut
       <Button
         size="lg"
         className="flex-1"
-        disabled={disabled || loading}
+        disabled={disabled || isPending}
         onClick={handleAddToCart}
       >
-        {loading ? "Adding..." : disabled ? "Out of Stock" : "Add to Cart"}
+        {isPending ? "Adding..." : disabled ? "Out of Stock" : "Add to Cart"}
       </Button>
     </div>
   );
@@ -2409,31 +2627,32 @@ export function AddToCartButton({ productId, variantId, disabled }: AddToCartBut
 
 ### Product Filters — `src/components/product/product-filters.tsx`
 
+> Categories are fetched server-side and passed as props — no GraphQL hook needed in the client component.
+
 ```tsx
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useProductCategoriesQuery } from "@/graphql/generated/graphql";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 interface ProductFiltersProps {
+  categories: Category[];
   activeCategory?: string;
   minPrice?: string;
   maxPrice?: string;
-  activeSort?: string;
 }
 
-export function ProductFilters({
-  activeCategory,
-  minPrice,
-  maxPrice,
-  activeSort,
-}: ProductFiltersProps) {
+export function ProductFilters({ categories, activeCategory, minPrice, maxPrice }: ProductFiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data } = useProductCategoriesQuery();
 
   function updateFilter(key: string, value: string | undefined) {
     const params = new URLSearchParams(searchParams.toString());
@@ -2454,24 +2673,18 @@ export function ProductFilters({
           <li>
             <button
               onClick={() => updateFilter("category", undefined)}
-              className={cn(
-                "text-sm hover:underline",
-                !activeCategory && "font-bold"
-              )}
+              className={cn("text-sm hover:underline", !activeCategory && "font-bold")}
             >
               All Products
             </button>
           </li>
-          {data?.categories?.map((cat) => (
-            <li key={cat.documentId}>
+          {categories.map((cat) => (
+            <li key={cat.id}>
               <button
                 onClick={() => updateFilter("category", cat.slug)}
-                className={cn(
-                  "text-sm hover:underline",
-                  activeCategory === cat.slug && "font-bold"
-                )}
+                className={cn("text-sm hover:underline", activeCategory === cat.slug && "font-bold")}
               >
-                {cat.name} ({cat.productCount})
+                {cat.name}
               </button>
             </li>
           ))}
@@ -2496,37 +2709,8 @@ export function ProductFilters({
         </div>
       </div>
 
-      <div>
-        <h3 className="font-semibold mb-3">Sort By</h3>
-        <ul className="space-y-1">
-          {[
-            { label: "Newest", value: "createdAt:desc" },
-            { label: "Price: Low to High", value: "price:asc" },
-            { label: "Price: High to Low", value: "price:desc" },
-            { label: "Name: A-Z", value: "name:asc" },
-          ].map(({ label, value }) => (
-            <li key={value}>
-              <button
-                onClick={() => updateFilter("sort", value)}
-                className={cn(
-                  "text-sm hover:underline",
-                  activeSort === value && "font-bold"
-                )}
-              >
-                {label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {(activeCategory || minPrice || maxPrice || activeSort) && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full"
-          onClick={() => router.push("/products")}
-        >
+      {(activeCategory || minPrice || maxPrice) && (
+        <Button variant="outline" size="sm" className="w-full" onClick={() => router.push("/products")}>
           Clear All Filters
         </Button>
       )}
@@ -2624,9 +2808,9 @@ Use Server Actions (`"use server"`) for form submissions and data mutations inst
 
 Use `(auth)`, `(dashboard)`, `(marketing)` to share layouts across pages without affecting the URL structure. This keeps your routing clean and your layouts organized.
 
-### 5. GraphQL with Code Generation
+### 5. Backend Adapter Pattern
 
-Define all queries and mutations in `.graphql` files under `src/graphql/operation/`. Run `pnpm codegen` to auto-generate fully typed React hooks. Never write GraphQL types by hand — the codegen is the single source of truth. Organize one `.graphql` file per entity (e.g., `user.graphql`, `team.graphql`).
+Never import a GraphQL client, fetch, or any backend SDK directly in services or components. All data access goes through `getBackend()` which returns a `BackendAdapter` typed to your repository interfaces. Define canonical domain types in `src/data-layer/types/` — these are the only types your app cares about. Each adapter in `src/data-layer/adapters/` implements the interfaces and handles all normalization internally. Switch backends by changing `BACKEND_PROVIDER` in `.env.local` — zero changes to services, actions, or components. GraphQL adapters (Magento, Shopify) use `graphql-request` (~5KB) with inline `gql.tada` queries — no codegen step, no `generated/` folder. REST adapters (Odoo, custom) use native `fetch` with Next.js cache integration.
 
 ### 6. Services Layer
 
@@ -2680,11 +2864,11 @@ Automate the quality gates: lint → type-check → test → build on every pull
 
 The architecture is optimized for Core Web Vitals (LCP, CLS, INP):
 
-- **LCP (Largest Contentful Paint):** Use `next/image` with `priority` on above-the-fold hero/product images. Use `<link rel="preconnect">` for the GraphQL API origin. Self-host fonts via `next/font` to eliminate render-blocking requests.
+- **LCP (Largest Contentful Paint):** Use `next/image` with `priority` on above-the-fold hero/product images. Use `<link rel="preconnect">` for the backend API origin (configured per adapter in `src/config/site.ts`). Self-host fonts via `next/font` to eliminate render-blocking requests.
 - **CLS (Cumulative Layout Shift):** Always specify `width` and `height` on images. Use `loading.tsx` skeletons that match final layout dimensions. Avoid client-side-only content that shifts the page.
 - **INP (Interaction to Next Paint):** Use `next/dynamic` with `ssr: false` for heavy client components (product gallery lightbox, rich text editors). Use `useOptimistic` for instant cart/filter interactions.
 - **Caching:** Set `revalidate` on product/category pages for ISR. Use `React.cache()` to deduplicate server-side data fetches. Configure `Cache-Control` headers for static assets.
-- **Bundle size:** Use `@next/bundle-analyzer` to audit dependencies. Lazy-load non-critical components with `next/dynamic`. Tree-shake GraphQL operations via codegen.
+- **Bundle size:** Use `@next/bundle-analyzer` to audit dependencies. Lazy-load non-critical components with `next/dynamic`. `graphql-request` (~5KB) + `gql.tada` (~1KB) replaces Apollo Client (~40KB) across all GraphQL adapters. Only the active adapter's client is loaded at runtime.
 - **Monitoring:** Report Web Vitals to your analytics provider via `lib/web-vitals.ts`. Track per-page, per-locale, and per-store metrics to catch regressions.
 
 ### 19. i18n — Locale-Aware Routing
@@ -2712,8 +2896,9 @@ Stores are resolved from the request hostname in `proxy.ts`. Each store (`config
 | **Styling** | Tailwind CSS 4           | Utility-first CSS (CSS-native config)          |
 |             | shadcn/ui                | Composable, accessible components              |
 |             | CVA                      | Component variant APIs                         |
-| **GraphQL** | Apollo Client            | GraphQL client with caching & React hooks      |
-|             | GraphQL Code Generator   | Auto-generate types & hooks from `.graphql`    |
+| **Backend** | Adapter Pattern          | Swap Magento / Shopify / Odoo / custom via env var |
+|             | graphql-request          | Minimal (~5KB) server-side GraphQL client      |
+|             | gql.tada                 | Inline GraphQL queries with inferred types (no codegen) |
 | **i18n**    | next-intl                | Server/client translations, locale routing     |
 | **Data**    | Zustand                  | Lightweight client-side UI + currency + store state |
 | **Auth**    | Auth.js v5 (NextAuth v5) | OAuth, magic links, credentials                |
@@ -2733,159 +2918,123 @@ Stores are resolved from the request hostname in `proxy.ts`. Each store (`config
 
 ---
 
-## GraphQL Setup Guide
+## Backend Integration Guide
 
-### Step 1: Install Dependencies
+### Step 1: Choose Your Backend
 
-```bash
-# Apollo Client (runtime)
-pnpm add @apollo/client graphql
-
-# GraphQL Code Generator (dev)
-pnpm add -D @graphql-codegen/cli @graphql-codegen/typescript @graphql-codegen/typescript-operations @graphql-codegen/typescript-react-apollo
-```
-
-### Step 2: Configure Environment
-
-Add the GraphQL endpoint to `.env.local`:
+Set `BACKEND_PROVIDER` in `.env.local` and add the matching credentials:
 
 ```env
-NEXT_PUBLIC_API_BASEURL="http://localhost:1337/graphql"
+# Choose one: magento | shopify | odoo | custom
+BACKEND_PROVIDER="magento"
+
+# Then add only the vars for your chosen provider (see .env.example)
+MAGENTO_GRAPHQL_URL="https://your-magento.com/graphql"
+MAGENTO_ADMIN_TOKEN="your-token"
 ```
 
-### Step 3: Create Codegen Config
+### Step 2: Install Dependencies for Your Backend
 
-Create `codegen.ts` at the project root:
+```bash
+# For any GraphQL backend (Magento, Shopify)
+pnpm add graphql-request gql.tada graphql
+pnpm add -D @0no-co/graphqlsp              # editor LSP plugin for inline type inference
 
-```ts
-import type { CodegenConfig } from "@graphql-codegen/cli";
-
-const schemaUrl = process.env.NEXT_PUBLIC_API_BASEURL;
-
-if (!schemaUrl) {
-  throw new Error("NEXT_PUBLIC_API_BASEURL is not set in .env.local");
-}
-
-const config: CodegenConfig = {
-  schema: schemaUrl,
-  documents: ["src/graphql/operation/**/*.graphql"],
-  generates: {
-    "src/graphql/generated/graphql.ts": {
-      plugins: [
-        "typescript",
-        "typescript-operations",
-        "typescript-react-apollo",
-      ],
-      config: {
-        useTypeImports: true,
-      },
-    },
-  },
-};
-
-export default config;
+# For REST backends (Odoo, custom) — no extra deps needed
+# Uses native fetch built into Next.js
 ```
 
-### Step 4: Create Apollo Client
+### Step 3: Configure gql.tada (GraphQL backends only)
 
-Create `src/apollo/client.ts`:
+`gql.tada` infers types from inline queries — no codegen step, no `generated/` folder. It only needs the schema introspected **once** per adapter.
 
-```ts
-import { ApolloClient, InMemoryCache } from "@apollo/client";
+**a.** Add an LSP config to `tsconfig.json`:
 
-const client = new ApolloClient({
-  uri: process.env.NEXT_PUBLIC_API_BASEURL,
-  cache: new InMemoryCache(),
-});
-
-export default client;
-```
-
-### Step 5: Create GraphQL Provider
-
-Create `src/graphql/GraphQlProvider.tsx`:
-
-```tsx
-"use client";
-
-import { ApolloProvider } from "@apollo/client";
-import client from "@/apollo/client";
-
-export default function GraphQlProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return <ApolloProvider client={client}>{children}</ApolloProvider>;
+```json
+{
+  "compilerOptions": {
+    "plugins": [
+      {
+        "name": "@0no-co/graphqlsp",
+        "schemas": [
+          { "name": "magento", "schema": "./schemas/magento.graphql", "tadaOutputLocation": "./schemas/magento-env.d.ts" },
+          { "name": "shopify", "schema": "./schemas/shopify.graphql", "tadaOutputLocation": "./schemas/shopify-env.d.ts" }
+        ]
+      }
+    ]
+  }
 }
 ```
 
-### Step 6: Add Provider to Root Layout
-
-Wrap your app with `GraphQlProvider` in `src/components/providers.tsx` (already shown in code examples above).
-
-### Step 7: Add Package Scripts
-
-Add these scripts to `package.json`:
+**b.** Fetch the schemas (one-off, re-run when schemas change):
 
 ```json
 {
   "scripts": {
-    "codegen": "graphql-codegen --config codegen.ts --require dotenv/config",
-    "codegen:watch": "graphql-codegen --config codegen.ts --require dotenv/config --watch"
+    "schema:magento": "gql.tada generate-schema $MAGENTO_GRAPHQL_URL --output schemas/magento.graphql",
+    "schema:shopify": "gql.tada generate-schema $SHOPIFY_STOREFRONT_URL --output schemas/shopify.graphql --header \"X-Shopify-Storefront-Access-Token: $SHOPIFY_STOREFRONT_TOKEN\""
   }
 }
 ```
-
-### Step 8: Write GraphQL Operations
-
-Create `.graphql` files in `src/graphql/operation/`:
-
-```graphql
-# src/graphql/operation/user.graphql
-query Users {
-  users {
-    id
-    name
-    email
-    role
-  }
-}
-```
-
-### Step 9: Generate Types & Hooks
 
 ```bash
-# Make sure your GraphQL API server is running, then:
-pnpm codegen
+pnpm schema:magento    # fetch Magento schema once
+pnpm schema:shopify    # fetch Shopify schema once
 ```
 
-This generates `src/graphql/generated/graphql.ts` containing:
+That's it — queries written with `graphql(\`...\`)` are now fully typed via the LSP. No build step, no watch mode, no generated code to commit. REST adapters skip this step entirely.
 
-- **TypeScript types** for all schema types, queries, and mutations
-- **Typed React hooks** for each operation:
-  - `useUsersQuery()` — standard query hook
-  - `useUsersLazyQuery()` — manually triggered query
-  - `useUsersSuspenseQuery()` — Suspense-compatible query (React 19)
+### Step 4: Implement Your Adapter (custom backends)
 
-### Step 10: Use Generated Hooks in Components
+Copy `src/data-layer/adapters/custom/` and implement the three repository interfaces:
 
-```tsx
-"use client";
+```ts
+// src/data-layer/adapters/my-backend/product.adapter.ts
+import type { IProductRepository } from "@/data-layer/interfaces/product.repository";
 
-import { useUsersQuery } from "@/graphql/generated/graphql";
-
-export default function UsersList() {
-  const { data, loading, error } = useUsersQuery();
-
-  if (loading) return <p>Loading...</p>;
-  if (error) return <p>Error: {error.message}</p>;
-
-  return data?.users.map((user) => <div key={user.id}>{user.name}</div>);
+export class MyBackendProductAdapter implements IProductRepository {
+  async getProducts(filters) {
+    const res = await fetch(`${process.env.CUSTOM_API_URL}/products`);
+    const data = await res.json();
+    return {
+      items: data.results.map(normalize),   // map to canonical Product type
+      total: data.count,
+      page: 1, limit: 20, hasNextPage: false,
+    };
+  }
+  // ... implement remaining methods
 }
 ```
 
-> **Tip:** Run `pnpm codegen:watch` alongside `pnpm dev` during development. It auto-regenerates types whenever you modify `.graphql` files.
+### Step 5: Register the Adapter
+
+Export your adapter from its `index.ts` and add it to the factory:
+
+```ts
+// src/data-layer/adapters/my-backend/index.ts
+import { MyBackendProductAdapter } from "./product.adapter";
+export const MyBackendAdapter = {
+  products: new MyBackendProductAdapter(),
+  cart: new MyBackendCartAdapter(),
+  users: new MyBackendUserAdapter(),
+};
+
+// src/data-layer/factory.ts — add a new case
+case "my-backend":
+  _backend = require("./adapters/my-backend").MyBackendAdapter;
+  break;
+```
+
+### Step 6: Use in Services and Actions
+
+All services and server actions call `getBackend()` — they work identically regardless of which adapter is active:
+
+```ts
+// services and actions never change when you switch backends
+const { products, cart, users } = getBackend();
+```
+
+> **Tip:** With `gql.tada`, there's nothing to watch or regenerate during development — types are inferred at edit time by the `@0no-co/graphqlsp` LSP plugin. Re-run `pnpm schema:magento` or `pnpm schema:shopify` only when the upstream GraphQL schema changes.
 
 ---
 
@@ -2899,27 +3048,29 @@ pnpm install
 
 # Setup environment
 cp .env.example .env.local
-# Edit .env.local with your values (including NEXT_PUBLIC_API_BASEURL)
+# Edit .env.local — set BACKEND_PROVIDER and the matching backend vars
 
-# Generate GraphQL types
-pnpm codegen        # Generate types & hooks from GraphQL schema
+# Fetch GraphQL schema (one-off — only for GraphQL backends)
+pnpm schema:magento    # Introspects Magento schema into ./schemas/magento.graphql
+pnpm schema:shopify    # Introspects Shopify schema into ./schemas/shopify.graphql
+# After this, queries are typed inline via gql.tada — no build step needed.
+# REST adapters (Odoo, custom) skip this step entirely.
 
 # Development
-pnpm dev            # Start dev server at localhost:3000
-pnpm codegen:watch  # Auto-regenerate types on .graphql file changes (run in separate terminal)
+pnpm dev               # Start dev server at localhost:3000
 
 # Quality checks
-pnpm lint           # ESLint
-pnpm type-check     # TypeScript compiler check
-pnpm test           # Unit tests (Vitest)
-pnpm test:e2e       # E2E tests (Playwright)
+pnpm lint              # ESLint
+pnpm type-check        # TypeScript compiler check
+pnpm test              # Unit tests (Vitest)
+pnpm test:e2e          # E2E tests (Playwright)
 
 # Production
-pnpm build          # Build for production
-pnpm start          # Start production server
+pnpm build             # Build for production
+pnpm start             # Start production server
 
 # Docker
-docker compose up   # Local dev with Redis
+docker compose up      # Local dev with Redis
 docker build -f docker/Dockerfile -t myapp .
 ```
 
