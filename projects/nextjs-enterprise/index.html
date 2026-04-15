@@ -39,7 +39,7 @@ tr:hover td{background:rgba(30,41,59,.4)}
 .filter-btn:hover{border-color:var(--text-dim);color:var(--text)}
 .filter-btn.active{border-color:var(--blue);color:var(--blue);background:rgba(59,130,246,.1)}
 .filter-btn.active[data-type="component"]{border-color:var(--purple);color:var(--purple);background:rgba(168,85,247,.1)}
-.filter-btn.active[data-type="graphql"]{border-color:var(--pink);color:var(--pink);background:rgba(236,72,153,.1)}
+.filter-btn.active[data-type="data-layer"]{border-color:var(--pink);color:var(--pink);background:rgba(236,72,153,.1)}
 .filter-btn.active[data-type="page"]{border-color:var(--green);color:var(--green);background:rgba(16,185,129,.1)}
 .filter-btn.active[data-type="config"]{border-color:#6b7280;color:#6b7280;background:rgba(107,114,128,.1)}
 .filter-btn.active[data-type="store"]{border-color:var(--yellow);color:var(--yellow);background:rgba(234,179,8,.1)}
@@ -72,7 +72,7 @@ tr:hover td{background:rgba(30,41,59,.4)}
 .tag-api{color:#06b6d4;border:1px solid #06b6d440;background:#06b6d415}
 .tag-actions{color:#f97316;border:1px solid #f9731640;background:#f9731615}
 .tag-components{color:#10b981;border:1px solid #10b98140;background:#10b98115}
-.tag-graphql{color:#ec4899;border:1px solid #ec489940;background:#ec489915}
+.tag-data-layer{color:#ec4899;border:1px solid #ec489940;background:#ec489915}
 .tag-lib{color:#eab308;border:1px solid #eab30840;background:#eab30815}
 .tag-hooks{color:#06b6d4;border:1px solid #06b6d440;background:#06b6d415}
 .tag-services{color:#10b981;border:1px solid #10b98140;background:#10b98115}
@@ -84,7 +84,7 @@ tr:hover td{background:rgba(30,41,59,.4)}
 .tag-ecommerce{color:#ec4899;border:1px solid #ec489940;background:#ec489915}
 .type-page{color:#10b981;background:rgba(16,185,129,.1)}
 .type-component{color:#8b5cf6;background:rgba(139,92,246,.1)}
-.type-graphql{color:#ec4899;background:rgba(236,72,153,.1)}
+.type-data-layer{color:#ec4899;background:rgba(236,72,153,.1)}
 .type-config{color:#6b7280;background:rgba(107,114,128,.1)}
 .type-store{color:#eab308;background:rgba(234,179,8,.1)}
 .type-action{color:#f97316;background:rgba(249,115,22,.1)}
@@ -115,13 +115,14 @@ tr:hover td{background:rgba(30,41,59,.4)}
 <header class="header">
 <div style="font-size:48px;margin-bottom:16px">🛒</div>
 <h1>Next.js Enterprise Ecommerce — Project Structure</h1>
-<p class="subtitle">A production-ready, scalable architecture for Next.js 16 ecommerce applications with App Router, GraphQL, and Apollo Client</p>
+<p class="subtitle">A production-ready, scalable architecture for Next.js 16 ecommerce applications — backend-agnostic data layer supporting Magento, Shopify, Odoo, or any custom REST/GraphQL API</p>
 <div class="tech-stack">
 <span class="tech-badge primary">Next.js 16</span>
 <span class="tech-badge primary">React 19</span>
 <span class="tech-badge primary">TypeScript</span>
-<span class="tech-badge primary">GraphQL</span>
-<span class="tech-badge primary">Apollo Client</span>
+<span class="tech-badge primary">Adapter Pattern</span>
+<span class="tech-badge primary">graphql-request</span>
+<span class="tech-badge primary">gql.tada</span>
 <span class="tech-badge">Tailwind CSS 4</span>
 <span class="tech-badge primary">next-intl</span>
 <span class="tech-badge">Zustand</span>
@@ -134,7 +135,7 @@ tr:hover td{background:rgba(30,41,59,.4)}
 <div class="stat"><div class="stat-value" style="color:var(--blue)">45+</div><div class="stat-label">Directories</div></div>
 <div class="stat"><div class="stat-value" style="color:var(--purple)">120+</div><div class="stat-label">Total Files</div></div>
 <div class="stat"><div class="stat-value" style="color:var(--green)">70+</div><div class="stat-label">Source Files</div></div>
-<div class="stat"><div class="stat-value" style="color:var(--pink)">10+</div><div class="stat-label">GraphQL Ops</div></div>
+<div class="stat"><div class="stat-value" style="color:var(--pink)">4</div><div class="stat-label">Backend Adapters</div></div>
 <div class="stat"><div class="stat-value" style="color:var(--yellow)">4</div><div class="stat-label">Route Groups</div></div>
 <div class="stat"><div class="stat-value" style="color:var(--cyan)">5</div><div class="stat-label">Locales</div></div>
 <div class="stat"><div class="stat-value" style="color:var(--orange)">4</div><div class="stat-label">Stores</div></div>
@@ -149,7 +150,9 @@ tr:hover td{background:rgba(30,41,59,.4)}
 <tbody>
 <tr><td>Framework</td><td>Next.js 16 + React 19 (App Router)</td></tr>
 <tr><td>Language</td><td>TypeScript 5.5+ (strict mode)</td></tr>
-<tr><td>GraphQL</td><td>Apollo Client + GraphQL Code Generator</td></tr>
+<tr><td>Data Layer</td><td>Backend Adapter Pattern — Magento / Shopify / Odoo / Custom (swappable via env var)</td></tr>
+<tr><td>GraphQL Client</td><td>graphql-request (~5KB) + gql.tada (inline queries, inferred types, no codegen)</td></tr>
+<tr><td>REST Client</td><td>Native fetch with Next.js cache integration (ISR, tags, revalidation)</td></tr>
 <tr><td>i18n</td><td>next-intl (server/client translations, locale routing)</td></tr>
 <tr><td>Styling</td><td>Tailwind CSS 4 (CSS-native config) + shadcn/ui + CVA</td></tr>
 <tr><td>State</td><td>Zustand (client UI state + cart + currency + store config)</td></tr>
@@ -168,15 +171,17 @@ tr:hover td{background:rgba(30,41,59,.4)}
 <section class="section">
 <h2 class="section-title"><span class="dot" style="background:var(--green)"></span>Architecture</h2>
 <div class="flow-card">
-<h3>Data Flow — GraphQL + Code Generation</h3>
+<h3>Data Flow — Backend Adapter Pattern</h3>
 <div class="flow-steps">
-<div class="flow-step"><span class="flow-step-label">Define operations</span> <span class="flow-step-detail">src/graphql/operation/*.graphql</span></div>
+<div class="flow-step"><span class="flow-step-label">Canonical types</span> <span class="flow-step-detail">src/data-layer/types/ — Product, Cart, User, Order (backend-agnostic)</span></div>
 <div class="flow-arrow">↓</div>
-<div class="flow-step" style="border-left-color:var(--pink)"><span class="flow-step-label">pnpm codegen</span> <span class="flow-step-detail">GraphQL Code Generator → types + React hooks</span></div>
+<div class="flow-step" style="border-left-color:var(--pink)"><span class="flow-step-label">Repository interfaces</span> <span class="flow-step-detail">src/data-layer/interfaces/ — IProductRepository, ICartRepository, IUserRepository</span></div>
 <div class="flow-arrow">↓</div>
-<div class="flow-step" style="border-left-color:var(--purple)"><span class="flow-step-label">Generated hooks</span> <span class="flow-step-detail">useProductsQuery, useAddToCartMutation, etc.</span></div>
+<div class="flow-step" style="border-left-color:var(--purple)"><span class="flow-step-label">Adapters</span> <span class="flow-step-detail">Magento/Shopify (GraphQL via graphql-request + gql.tada) | Odoo/Custom (REST via fetch)</span></div>
 <div class="flow-arrow">↓</div>
-<div class="flow-step" style="border-left-color:var(--green)"><span class="flow-step-label">Components</span> <span class="flow-step-detail">Client components use hooks, Server components use Apollo client directly</span></div>
+<div class="flow-step" style="border-left-color:var(--orange)"><span class="flow-step-label">getBackend() factory</span> <span class="flow-step-detail">Resolves active adapter from BACKEND_PROVIDER env var</span></div>
+<div class="flow-arrow">↓</div>
+<div class="flow-step" style="border-left-color:var(--green)"><span class="flow-step-label">Services & Actions</span> <span class="flow-step-detail">Never touch backend SDKs — only call getBackend().products, .cart, .users</span></div>
 </div>
 </div>
 <div class="flow-card">
@@ -190,7 +195,7 @@ tr:hover td{background:rgba(30,41,59,.4)}
 <div class="flow-arrow">↓</div>
 <div class="flow-step"><span class="flow-step-label">Route Group Layout</span> <span class="flow-step-detail">(auth) | (shop) | (dashboard) — session check</span></div>
 <div class="flow-arrow">↓</div>
-<div class="flow-step"><span class="flow-step-label">Server Component</span> <span class="flow-step-detail">Fetches data via Apollo Client with store/locale headers</span></div>
+<div class="flow-step"><span class="flow-step-label">Server Component</span> <span class="flow-step-detail">Calls services → getBackend() returns typed adapter — works with any backend</span></div>
 <div class="flow-arrow">↓</div>
 <div class="flow-step"><span class="flow-step-label">Client Components</span> <span class="flow-step-detail">Locale-aware UI, currency-formatted prices, RTL support</span></div>
 </div>
@@ -230,10 +235,10 @@ tr:hover td{background:rgba(30,41,59,.4)}
 <h2 class="section-title"><span class="dot" style="background:var(--cyan)"></span>Scripts</h2>
 <div class="code-block"><span class="hl-comment"># Development</span>
 <span class="hl-cmd">pnpm dev</span>                <span class="hl-comment"># Start dev server at localhost:3000</span>
-<span class="hl-cmd">pnpm codegen:watch</span>      <span class="hl-comment"># Auto-regenerate GraphQL types on change</span>
 
-<span class="hl-comment"># GraphQL</span>
-<span class="hl-cmd">pnpm codegen</span>            <span class="hl-comment"># Generate types & hooks from GraphQL schema</span>
+<span class="hl-comment"># GraphQL schema (one-off — re-run when upstream schema changes)</span>
+<span class="hl-cmd">pnpm schema:magento</span>     <span class="hl-comment"># Introspect Magento schema for gql.tada</span>
+<span class="hl-cmd">pnpm schema:shopify</span>     <span class="hl-comment"># Introspect Shopify schema for gql.tada</span>
 
 <span class="hl-comment"># Quality</span>
 <span class="hl-cmd">pnpm lint</span>               <span class="hl-comment"># ESLint (flat config)</span>
@@ -259,8 +264,21 @@ tr:hover td{background:rgba(30,41,59,.4)}
 <span class="hl-key">AUTH_SECRET</span>=<span class="hl-val">your-secret-here</span>
 <span class="hl-key">AUTH_URL</span>=<span class="hl-val">http://localhost:3000</span>
 
-<span class="hl-comment"># GraphQL API</span>
-<span class="hl-key">NEXT_PUBLIC_API_BASEURL</span>=<span class="hl-val">http://localhost:1337/graphql</span>
+<span class="hl-comment"># Backend Provider — choose one: magento | shopify | odoo | custom</span>
+<span class="hl-key">BACKEND_PROVIDER</span>=<span class="hl-val">magento</span>
+
+<span class="hl-comment"># Magento (GraphQL)</span>
+<span class="hl-key">MAGENTO_GRAPHQL_URL</span>=<span class="hl-val">https://your-magento.com/graphql</span>
+<span class="hl-key">MAGENTO_ADMIN_TOKEN</span>=<span class="hl-val">your-magento-token</span>
+
+<span class="hl-comment"># Shopify (GraphQL Storefront API)</span>
+<span class="hl-key">SHOPIFY_STOREFRONT_URL</span>=<span class="hl-val">https://your-store.myshopify.com/api/2024-01/graphql.json</span>
+<span class="hl-key">SHOPIFY_STOREFRONT_TOKEN</span>=<span class="hl-val">your-storefront-token</span>
+
+<span class="hl-comment"># Odoo (REST)</span>
+<span class="hl-key">ODOO_BASE_URL</span>=<span class="hl-val">https://your-odoo.com</span>
+<span class="hl-key">ODOO_DB</span>=<span class="hl-val">your-database</span>
+<span class="hl-key">ODOO_API_KEY</span>=<span class="hl-val">your-odoo-key</span>
 
 <span class="hl-comment"># Third-party</span>
 <span class="hl-key">STRIPE_SECRET_KEY</span>=<span class="hl-val">sk_test_...</span>
@@ -398,8 +416,8 @@ const T=[
       {name:"product-info.tsx",type:"component",desc:"Price, discount %, stock status, description"},
       {name:"product-filters.tsx",type:"component",desc:"Category, price range, sort (URL-based)"},
       {name:"product-filters.test.tsx",type:"component",desc:"Filter interactions, URL param updates"},
-      {name:"add-to-cart-button.tsx",type:"component",desc:"Quantity selector + useAddToCartMutation"},
-      {name:"add-to-cart-button.test.tsx",type:"component",desc:"Quantity +/-, mutation mock, disabled state"}
+      {name:"add-to-cart-button.tsx",type:"component",desc:"Quantity selector + addToCartAction (server action, backend-agnostic)"},
+      {name:"add-to-cart-button.test.tsx",type:"component",desc:"Quantity +/-, action mock, disabled state"}
     ]},
     {name:"cart/",tag:"ecommerce",children:[
       {name:"cart-item.tsx",type:"component",desc:"Single cart line item"},
@@ -412,23 +430,52 @@ const T=[
       {name:"login-form.tsx",type:"component",desc:"Login form with server action"},
       {name:"settings-form.tsx",type:"component",desc:"Settings form"}
     ]},
-    {name:"providers.tsx",type:"component",desc:"All providers: Auth + GraphQL + Theme + Currency + Store + Toast"}
+    {name:"providers.tsx",type:"component",desc:"All providers: Auth + Theme + Currency + Store + Toast (no GraphQL — adapter runs server-side)"}
   ]},
-  {name:"apollo/",tag:"graphql",children:[
-    {name:"client.ts",type:"graphql",desc:"Apollo Client configuration (singleton)"}
-  ]},
-  {name:"graphql/",tag:"graphql",children:[
-    {name:"GraphQlProvider.tsx",type:"graphql",desc:"ApolloProvider wrapper (use client)"},
-    {name:"generated/",children:[
-      {name:"graphql.ts",type:"graphql",desc:"Auto-generated types & hooks (do not edit)"}
+  {name:"data-layer/",tag:"data-layer",children:[
+    {name:"types/",children:[
+      {name:"product.ts",type:"data-layer",desc:"Canonical Product, ProductImage, ProductVariant, ProductFilters, PaginatedResult"},
+      {name:"cart.ts",type:"data-layer",desc:"Canonical Cart, CartItem, CartSummary"},
+      {name:"user.ts",type:"data-layer",desc:"Canonical User, UserProfile, UserRole"},
+      {name:"order.ts",type:"data-layer",desc:"Canonical Order, OrderItem, OrderStatus"}
     ]},
-    {name:"operation/",children:[
-      {name:"user.graphql",type:"graphql",desc:"User queries & mutations"},
-      {name:"team.graphql",type:"graphql",desc:"Team queries & mutations"},
-      {name:"product.graphql",type:"graphql",desc:"Products, ProductBySlug, ProductCategories queries"},
-      {name:"cart.graphql",type:"graphql",desc:"Cart query, AddToCart, UpdateCartItem, RemoveFromCart"},
-      {name:"auth.graphql",type:"graphql",desc:"Auth queries & mutations"}
-    ]}
+    {name:"interfaces/",children:[
+      {name:"product.repository.ts",type:"data-layer",desc:"IProductRepository contract"},
+      {name:"cart.repository.ts",type:"data-layer",desc:"ICartRepository contract"},
+      {name:"user.repository.ts",type:"data-layer",desc:"IUserRepository contract"},
+      {name:"order.repository.ts",type:"data-layer",desc:"IOrderRepository contract"}
+    ]},
+    {name:"adapters/",children:[
+      {name:"magento/",children:[
+        {name:"client.ts",type:"data-layer",desc:"graphql-request GraphQLClient — Magento auth + Next.js fetch cache"},
+        {name:"product.adapter.ts",type:"data-layer",desc:"Implements IProductRepository — inline gql.tada queries, normalizes to canonical Product"},
+        {name:"cart.adapter.ts",type:"data-layer",desc:"Implements ICartRepository"},
+        {name:"user.adapter.ts",type:"data-layer",desc:"Implements IUserRepository"},
+        {name:"index.ts",type:"data-layer",desc:"Exports MagentoAdapter"}
+      ]},
+      {name:"shopify/",children:[
+        {name:"client.ts",type:"data-layer",desc:"graphql-request GraphQLClient — Shopify Storefront token + fetch cache"},
+        {name:"product.adapter.ts",type:"data-layer",desc:"Implements IProductRepository — normalizes handle/availableForSale → slug/inStock"},
+        {name:"cart.adapter.ts",type:"data-layer",desc:"Implements ICartRepository"},
+        {name:"user.adapter.ts",type:"data-layer",desc:"Implements IUserRepository"},
+        {name:"index.ts",type:"data-layer",desc:"Exports ShopifyAdapter"}
+      ]},
+      {name:"odoo/",children:[
+        {name:"client.ts",type:"data-layer",desc:"Authenticated fetch wrapper for Odoo REST API"},
+        {name:"product.adapter.ts",type:"data-layer",desc:"Implements IProductRepository — REST calls, normalizes Odoo fields"},
+        {name:"cart.adapter.ts",type:"data-layer",desc:"Implements ICartRepository"},
+        {name:"user.adapter.ts",type:"data-layer",desc:"Implements IUserRepository"},
+        {name:"index.ts",type:"data-layer",desc:"Exports OdooAdapter"}
+      ]},
+      {name:"custom/",children:[
+        {name:"client.ts",type:"data-layer",desc:"Template HTTP client setup (REST or GraphQL)"},
+        {name:"product.adapter.ts",type:"data-layer",desc:"Stub — implement for any custom backend"},
+        {name:"cart.adapter.ts",type:"data-layer",desc:"Stub — implement for any custom backend"},
+        {name:"user.adapter.ts",type:"data-layer",desc:"Stub — implement for any custom backend"},
+        {name:"index.ts",type:"data-layer",desc:"Exports CustomAdapter"}
+      ]}
+    ]},
+    {name:"factory.ts",type:"data-layer",desc:"getBackend() — resolves active adapter from BACKEND_PROVIDER env var"}
   ]},
   {name:"lib/",tag:"lib",children:[
     {name:"utils.ts",type:"util",desc:"cn(), formatDate(locale), sleep()"},
@@ -457,7 +504,7 @@ const T=[
     {name:"use-local-storage.test.ts",type:"hook",desc:"Read/write/clear localStorage"}
   ]},
   {name:"services/",tag:"services",children:[
-    {name:"user.service.ts",type:"service",desc:"User queries via Apollo Client (server-side)"},
+    {name:"user.service.ts",type:"service",desc:"User queries via getBackend() — backend-agnostic (server-side)"},
     {name:"user.service.test.ts",type:"service",desc:"User service unit test"},
     {name:"billing.service.ts",type:"service",desc:"Stripe integration (multi-currency aware)"},
     {name:"currency.service.ts",type:"service",desc:"Exchange rate fetching, caching, conversion"},
@@ -538,7 +585,10 @@ const T=[
   ]}
 ]},
 {name:"next.config.ts",type:"config",desc:"Next.js config — standalone, typedRoutes, authInterrupts"},
-{name:"codegen.ts",type:"graphql",desc:"GraphQL Code Generator config"},
+{name:"schemas/",tag:"data-layer",children:[
+  {name:"magento.graphql",type:"data-layer",desc:"Magento schema snapshot — used by gql.tada LSP (generated once via pnpm schema:magento)"},
+  {name:"shopify.graphql",type:"data-layer",desc:"Shopify Storefront schema snapshot — used by gql.tada LSP"}
+]},
 {name:"vitest.config.ts",type:"config",desc:"Vitest config — jsdom, @/ paths, coverage"},
 {name:"tsconfig.json",type:"config",desc:"TypeScript config — esnext, strict, @/ alias"},
 {name:"eslint.config.mjs",type:"config",desc:"ESLint 9 flat config"},
@@ -550,8 +600,8 @@ const T=[
 {name:"README.md",type:"util",desc:"Project documentation"}
 ];
 
-const TL={page:"Page",component:"Component",graphql:"GraphQL",config:"Config",store:"Store",action:"Action",hook:"Hook",service:"Service",util:"Util"};
-const FILTERS=["all","page","component","graphql","action","store","hook","service","config"];
+const TL={page:"Page",component:"Component","data-layer":"Data Layer",config:"Config",store:"Store",action:"Action",hook:"Hook",service:"Service",util:"Util"};
+const FILTERS=["all","page","component","data-layer","action","store","hook","service","config"];
 let expanded={},currentSearch="",currentFilter="all";
 
 function init(nodes,d,p){nodes.forEach(n=>{const k=p+"/"+n.name;if(n.children){expanded[k]=d<1;init(n.children,d+1,k)}})}
@@ -574,7 +624,7 @@ if(isFolder&&currentFilter!=="all"){let hasMatch=false;(function walk(n){if(!n.c
 const div=document.createElement("div");div.className="tree-node"+(isFolder?" folder":"");div.style.paddingLeft=(depth*20+16)+"px";
 if(isFolder)div.onclick=()=>{expanded[path]=!expanded[path];render()};
 const tog=document.createElement("span");tog.className="tree-toggle";tog.textContent=isFolder?(expanded[path]||currentSearch?"▾":"▸"):"";div.appendChild(tog);
-const ico=document.createElement("span");ico.className="tree-icon";ico.textContent=isFolder?(expanded[path]||currentSearch?"📂":"📁"):(node.type==="graphql"?"💠":node.type==="page"?"📄":node.type==="component"?"🧩":node.type==="store"?"🗄️":node.type==="hook"?"🪝":node.type==="action"?"⚡":"📄");div.appendChild(ico);
+const ico=document.createElement("span");ico.className="tree-icon";ico.textContent=isFolder?(expanded[path]||currentSearch?"📂":"📁"):(node.type==="data-layer"?"🔌":node.type==="page"?"📄":node.type==="component"?"🧩":node.type==="store"?"🗄️":node.type==="hook"?"🪝":node.type==="action"?"⚡":"📄");div.appendChild(ico);
 const info=document.createElement("div");info.className="tree-info";
 const row=document.createElement("div");row.className="tree-name-row";
 const nm=document.createElement("span");nm.className="tree-name "+(isFolder?"is-folder":"is-file");nm.innerHTML=hl(node.name,currentSearch);row.appendChild(nm);
