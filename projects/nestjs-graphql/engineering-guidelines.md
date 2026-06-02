@@ -219,7 +219,20 @@ The descriptive map — the `integrations/` anti-corruption layer, its two categ
 
 ---
 
-## 14. Anti-patterns — do NOT do these
+## 14. Internationalization (i18n)
+
+The map (locale resolution, app-message vs content i18n, per-store-view sync) is in [`codebase-context.md`](./codebase-context.md) §14. The API is multilingual on both axes, keyed off `Accept-Language`. These are the rules.
+
+- **must** resolve locale via `nestjs-i18n`'s `AcceptLanguageResolver`, normalize it (`en-US` → `en`), and **validate against `SUPPORTED_LOCALES`**, falling back to `DEFAULT_LOCALE`. Never honor an arbitrary client-supplied locale — allowlist only. Pass the resolved locale down via `@CurrentLocale()` / context, not by re-reading the header in services.
+- **must not** hardcode user-facing strings (validation errors, GraphQL error messages, emails). All such text comes from `libs/i18n/locales/<lang>/*.json` via `I18nService`; class-validator messages use the `nestjs-i18n` validation integration; `gql-exception.filter.ts` localizes errors for the resolved locale.
+- **must** store localized **content** (product/category `name`, `description`, …) in a per-locale `*_translation` table keyed `(…, locale)`, **never** as localized columns on the base entity. The base entity holds only locale-neutral fields.
+- **must** resolve reads to the requested locale and **fall back to `DEFAULT_LOCALE`** when a translation is missing — a missing translation is never an empty/erroring field. Batch translation lookups with a `Scope.REQUEST` loader keyed by `(id, locale)`.
+- **must** localize at the **mapper** (`entity + translation(locale) → GQL type`); don't branch on locale in business logic.
+- **must**, in sync (§13), iterate each Magento **store-view → locale**, map to a canonical DTO carrying its `locale`, and upsert the translation table idempotently keyed `(tenantId, id, locale)`. The store-view↔locale map lives in `tenant-platform-config`.
+
+---
+
+## 15. Anti-patterns — do NOT do these
 
 - ❌ Editing `schema.gql` by hand.
 - ❌ Returning a TypeORM entity from a service to a resolver (skipping the mapper).
@@ -244,4 +257,7 @@ The descriptive map — the `integrations/` anti-corruption layer, its two categ
 - ❌ Serving generated assets from a public S3 bucket instead of short-lived signed URLs, or skipping tenant scoping on asset access.
 - ❌ Putting a global vendor key (`REMOVE_BG_API_KEY`, …) in the per-tenant config, or leaving AI calls unquota'd per tenant.
 - ❌ Filing a not-inherently-AI capability (e.g. vectorization) under `ai/`, or pre-creating a *vendor* sub-folder before a 2nd vendor exists (capability folders are always fine).
+- ❌ Hardcoding user-facing strings (errors, validation messages, emails) instead of `I18nService` translation keys.
+- ❌ Storing localized text as columns on the base entity instead of a per-locale `*_translation` table.
+- ❌ Honoring an arbitrary client locale without allowlisting against `SUPPORTED_LOCALES`, or erroring/returning empty instead of falling back to `DEFAULT_LOCALE`.
 

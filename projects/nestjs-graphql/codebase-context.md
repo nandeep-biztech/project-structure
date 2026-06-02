@@ -48,6 +48,7 @@ TypeScript is the source of truth; there is no SDL to keep in sync, so the schem
 | Queues           | BullMQ + Redis                                                          |
 | Auth             | PassportJS + JWT + CASL (RBAC + ability-based)                          |
 | Validation       | `class-validator` (via global `ValidationPipe`)                         |
+| i18n             | `nestjs-i18n` (locale from `Accept-Language`) — app messages + content translations |
 | Logging          | Pino (structured JSON)                                                  |
 | Observability    | OpenTelemetry + Prometheus + Jaeger; Sentry for errors                  |
 | Testing          | Jest (unit) + Supertest (e2e)                                           |
@@ -64,7 +65,7 @@ TypeScript is the source of truth; there is no SDL to keep in sync, so the schem
 ├── src/
 │   ├── modules/             # One folder per business domain (users, posts, auth) — full anatomy in §4
 │   ├── common/             # Shared cross-module utilities
-│   │   ├── decorators/     # @CurrentUser, @Roles, @Public, @Complexity
+│   │   ├── decorators/     # @CurrentUser, @Roles, @Public, @Complexity, @CurrentLocale
 │   │   ├── guards/         # RolesGuard, throttler-gql guard
 │   │   ├── filters/        # gql-exception, http-exception
 │   │   ├── interceptors/   # logging, timeout
@@ -85,7 +86,8 @@ TypeScript is the source of truth; there is no SDL to keep in sync, so the schem
 │   ├── logger/             # Pino (structured JSON)
 │   ├── auth/               # Passport + JWT + CASL
 │   ├── telemetry/          # OpenTelemetry + Prometheus
-│   └── storage/            # AWS S3 (signed URLs)
+│   ├── storage/            # AWS S3 (signed URLs)
+│   └── i18n/               # nestjs-i18n: AcceptLanguageResolver, locales/<lang>/*.json (app messages)
 ├── integrations/           # Anti-corruption layer for external APIs: commerce + general capabilities — see §13
 ├── test/                   # e2e specs, helpers, fixtures, factories
 ├── scripts/                # seed, migrate, codegen
@@ -159,13 +161,14 @@ modules/<name>s/
 ```
 HTTP POST /graphql
   → Apollo plugin pipeline (see §7)
+  → i18n resolver          (Accept-Language → normalized locale in GQL context; @CurrentLocale())
   → GqlAuthGuard           (JWT → attaches user to GQL context)
   → RolesGuard             (@Roles metadata via Reflector)
-  → ValidationPipe         (validates @InputType / @ArgsType via class-validator)
+  → ValidationPipe         (validates @InputType / @ArgsType via class-validator; messages localized)
   → Resolver method        (thin — delegates immediately)
-      → Service            (business logic + CASL authorization check)
-          → Repository     (TypeORM query; soft-delete aware: WHERE deletedAt IS NULL)
-      → Mapper             (entity → GQL type, strips sensitive fields)
+      → Service            (business logic + CASL authorization check; passes locale down)
+          → Repository     (TypeORM query; soft-delete aware: WHERE deletedAt IS NULL; joins *_translation for the locale)
+      → Mapper             (entity + translation(locale) → GQL type, strips sensitive fields)
   → @ResolveField for relations
       → DataLoader (Scope.REQUEST)   (batches N lookups into one WHERE id IN (...))
   → Response
@@ -247,7 +250,7 @@ This maps _where each defense lives and what it protects_. It is descriptive; th
 
 Config is loaded globally in `app.module.ts` from `.env.${NODE_ENV}` then `.env`. Per-environment files: `.env` (local), `.env.test` (test runner), `.env.prod` (production — never committed).
 
-Notable env vars: `PORT`, `DB_`_, `REDIS\__`, `JWT_SECRET`/`JWT_EXPIRES_IN`, `GQL_DEPTH_LIMIT`(7),`GQL_MAX_COMPLEXITY`(200),`ALLOWED_ORIGINS`, `OTEL_EXPORTER_JAEGER_ENDPOINT`, `SENTRY_DSN`; storage: `AWS_S3_BUCKET`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`; **global provider keys** (general capabilities, §13b): `REMOVE_BG_API_KEY`, `STABILITY_API_KEY`.
+Notable env vars: `PORT`, `DB_`_, `REDIS\__`, `JWT_SECRET`/`JWT_EXPIRES_IN`, `GQL_DEPTH_LIMIT`(7),`GQL_MAX_COMPLEXITY`(200),`ALLOWED_ORIGINS`, `OTEL_EXPORTER_JAEGER_ENDPOINT`, `SENTRY_DSN`; storage: `AWS_S3_BUCKET`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`; **global provider keys** (general capabilities, §13b): `REMOVE_BG_API_KEY`, `STABILITY_API_KEY`; i18n: `SUPPORTED_LOCALES` (e.g. `en,fr,de`), `DEFAULT_LOCALE` (`en`).
 
 ---
 
@@ -374,7 +377,34 @@ designer → generateImage / removeBackground mutation (GraphQL)
 
 ---
 
-## 14. Layer responsibility summary
+## 14. Internationalization (i18n)
+
+The API is multilingual on **two independent axes**, both keyed off the **`Accept-Language`** header.
+
+### Locale resolution
+`nestjs-i18n`'s `AcceptLanguageResolver` (wired for GraphQL context) reads `Accept-Language`, **normalizes** it (`en-US` → `en`), validates it against `SUPPORTED_LOCALES`, and falls back to `DEFAULT_LOCALE` when missing/unknown. The resolved locale is placed in the GQL context and exposed to resolvers/services via a `@CurrentLocale()` decorator (`common/decorators/`). Client-supplied locale is never trusted blindly — only allowlisted locales are honored.
+
+### Axis 1 — App-message i18n (`libs/i18n/`)
+All user-facing system text — **validation errors, GraphQL error messages, emails/notifications** — comes from translation files (`libs/i18n/locales/<lang>/*.json`) via `I18nService`, never hardcoded strings. class-validator messages are localized through `nestjs-i18n`'s validation integration, and `gql-exception.filter.ts` translates error messages for the resolved locale.
+
+### Axis 2 — Content i18n (localized product/category data)
+Domain content that differs per language (product/category **name, description**, …) is stored **per-locale**, separate from locale-neutral fields:
+
+```
+catalog entities (illustrative)
+├── product.entity.ts              # locale-NEUTRAL: id, sku, price, externalId, tenantId, syncedAt
+└── product-translation.entity.ts  # per-locale: (productId, locale, name, description)  — PK (productId, locale)
+```
+
+- **Read path:** the catalog query joins/loads the `*_translation` row for the resolved locale, **falling back to `DEFAULT_LOCALE`** when a translation is missing. A `Scope.REQUEST` loader keyed by `(id, locale)` batches translation lookups.
+- **Mapper:** `entity + translation(locale) → GraphQL type`.
+- **Sync (ties into §13a):** Magento is localized **per store view**, so sync iterates each configured store-view→locale, maps to a canonical `ProductDTO` carrying its `locale`, and upserts the translation table keyed by `(tenantId, productId, locale)`. The store-view↔locale map lives in the per-tenant `tenant-platform-config`.
+
+> Enforceable i18n rules (resolve+allowlist locale, no hardcoded user-facing strings, localized content in a per-locale translation table with default-locale fallback, per-store-view sync) are in [`engineering-guidelines.md`](./engineering-guidelines.md) §14.
+
+---
+
+## 15. Layer responsibility summary
 
 | Layer             | Responsibility                                       | Key tech                  |
 | ----------------- | ---------------------------------------------------- | ------------------------- |
@@ -386,6 +416,7 @@ designer → generateImage / removeBackground mutation (GraphQL)
 | `libs/cache/`     | Caching                                              | Redis, ioredis            |
 | `libs/queue/`     | Async jobs                                           | BullMQ, Redis             |
 | `libs/storage/`   | Object storage                                       | AWS S3                    |
+| `libs/i18n/`      | Localization (messages + locale resolution)          | nestjs-i18n               |
 | `libs/auth/`      | AuthN + AuthZ                                        | Passport, JWT, CASL       |
 | `libs/logger/`    | Structured logging                                   | Pino                      |
 | `libs/telemetry/` | Observability                                        | OpenTelemetry, Prometheus |
