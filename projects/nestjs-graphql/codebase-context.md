@@ -22,11 +22,11 @@ A large-scale **NestJS** backend exposing a **GraphQL API** built with the **cod
 
 The entire **domain API is GraphQL** (over HTTP + WebSocket); the only REST surface is the health probe.
 
-| Endpoint               | Transport    | What it serves                         | Defined where                                                       |
-| ---------------------- | ------------ | -------------------------------------- | ------------------------------------------------------------------- |
-| `POST /graphql`        | HTTP         | All queries + mutations — the main API | code-first resolvers, mounted by `GraphQLModule` in `app.module.ts` |
-| `/graphql` (WebSocket) | `graphql-ws` | GraphQL **subscriptions**              | `subscriptions: { 'graphql-ws': true }` in `app.module.ts`          |
-| `GET /health`          | **REST**     | Liveness/readiness (db + redis status) | `health/health.controller.ts` (a normal `@Controller`, Terminus)    |
+| Endpoint               | Transport    | What it serves                                                                 | Defined where                                                       |
+| ---------------------- | ------------ | ------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| `POST /graphql`        | HTTP         | All queries + mutations — the main API                                         | code-first resolvers, mounted by `GraphQLModule` in `app.module.ts` |
+| `/graphql` (WebSocket) | `graphql-ws` | GraphQL **subscriptions**                                                      | `subscriptions: { 'graphql-ws': true }` in `app.module.ts`          |
+| `GET /health`          | **REST**     | Liveness/readiness (db + redis) — **public/unauthenticated**, no business data | `health/health.controller.ts` (a normal `@Controller`, Terminus)    |
 
 > Why REST for `/health`: load balancers and Kubernetes probes expect a plain HTTP `GET` returning 200/503 — they can't speak GraphQL. The two transports are also why `common/filters/` has both `gql-exception.filter.ts` and `http-exception.filter.ts`.
 
@@ -34,25 +34,27 @@ The entire **domain API is GraphQL** (over HTTP + WebSocket); the only REST surf
 
 TypeScript is the source of truth; there is no SDL to keep in sync, so the schema cannot drift from the resolvers. IDE renames propagate to the schema, there is no codegen step in the inner loop, and `PartialType`/`PickType`/`OmitType` compose naturally. Schema-first would only be chosen if a non-TypeScript consumer needed the hand-authored `.graphql` file — that is not the case here.
 
+> **No codegen in this project.** The server schema is auto-emitted from decorators into `schema.gql` on startup — there is no codegen step on the server at all. **Client/type codegen is the frontend's responsibility:** the React admin panel and designer tool run their own `graphql-codegen` against the published `schema.gql` (or a dev/staging endpoint — never prod, where introspection is off, §10). This backend's only obligation to consumers is to **emit and publish `schema.gql`**.
+
 ---
 
 ## 2. Tech stack
 
-| Concern          | Technology                                                              |
-| ---------------- | ----------------------------------------------------------------------- |
-| Runtime          | Node.js 24.16.0 "Krypton" (current active LTS)                          |
-| Framework        | NestJS                                                                  |
-| API              | GraphQL code-first, Apollo Server (`@nestjs/apollo`, `@nestjs/graphql`) |
-| Database         | PostgreSQL + TypeORM                                                    |
-| Cache            | Redis (`ioredis`)                                                       |
-| Queues           | BullMQ + Redis                                                          |
-| Auth             | PassportJS + JWT + CASL (RBAC + ability-based)                          |
-| Validation       | `class-validator` (via global `ValidationPipe`)                         |
+| Concern          | Technology                                                                          |
+| ---------------- | ----------------------------------------------------------------------------------- |
+| Runtime          | Node.js 24.16.0 "Krypton" (current active LTS)                                      |
+| Framework        | NestJS                                                                              |
+| API              | GraphQL code-first, Apollo Server (`@nestjs/apollo`, `@nestjs/graphql`)             |
+| Database         | PostgreSQL + TypeORM                                                                |
+| Cache            | Redis (`ioredis`)                                                                   |
+| Queues           | BullMQ + Redis                                                                      |
+| Auth             | PassportJS + JWT + CASL (RBAC + ability-based)                                      |
+| Validation       | `class-validator` (via global `ValidationPipe`)                                     |
 | i18n             | `nestjs-i18n` (locale from `Accept-Language`) — app messages + content translations |
-| Logging          | Pino (structured JSON)                                                  |
-| Observability    | OpenTelemetry + Prometheus + Jaeger; Sentry for errors                  |
-| Testing          | Jest (unit) + Supertest (e2e)                                           |
-| Security headers | Helmet, CORS allowlist                                                  |
+| Logging          | Pino (structured JSON)                                                              |
+| Observability    | OpenTelemetry + Prometheus + Jaeger; Sentry for errors                              |
+| Testing          | Jest (unit) + Supertest (e2e)                                                       |
+| Security headers | Helmet, CORS allowlist                                                              |
 
 ---
 
@@ -90,7 +92,7 @@ TypeScript is the source of truth; there is no SDL to keep in sync, so the schem
 │   └── i18n/               # nestjs-i18n: AcceptLanguageResolver, locales/<lang>/*.json (app messages)
 ├── integrations/           # Anti-corruption layer for external APIs: commerce + general capabilities — see §13
 ├── test/                   # e2e specs, helpers, fixtures, factories
-├── scripts/                # seed, migrate, codegen
+├── scripts/                # seed, migrate
 ├── docker/                 # Dockerfile, compose.yml, nginx.conf
 ├── schema.gql              # AUTO-GENERATED — do not edit
 └── tsconfig.paths.json     # Path aliases: @libs/*, @common/*, @modules/*, @config/*
@@ -144,14 +146,14 @@ modules/<name>s/
 
 `libs/` modules are imported **once** in `AppModule` and provided globally. Feature modules never create their own DB connections, Redis clients, or auth guards — they consume these.
 
-| Lib               | Tech                       | Provides                                                                                             |
-| ----------------- | -------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `libs/database/`  | TypeORM + PostgreSQL       | Connection, `BaseEntity` (uuid id, createdAt, updatedAt, deletedAt), migrations, seeds, transactions |
-| `libs/cache/`     | Redis + ioredis            | `get<T>()`, `set()`, `del()`, `invalidatePattern()`                                                  |
-| `libs/queue/`     | BullMQ + Redis             | Job queues, retry logic, dead-letter queue, base processor                                           |
-| `libs/logger/`    | Pino                       | Structured JSON logs + Apollo op-logging plugin                                                      |
-| `libs/auth/`      | Passport + JWT + CASL      | `JwtStrategy`, `GqlAuthGuard`, `CaslAbilityFactory`, `@CurrentUser()`, `RolesGuard`                  |
-| `libs/telemetry/` | OpenTelemetry + Prometheus | Tracing spans, metrics histograms, Jaeger exporter                                                   |
+| Lib               | Tech                       | Provides                                                                                              |
+| ----------------- | -------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `libs/database/`  | TypeORM + PostgreSQL       | Connection, `BaseEntity` (uuid id, createdAt, updatedAt, deletedAt), migrations, seeds, transactions  |
+| `libs/cache/`     | Redis + ioredis            | `get<T>()`, `set()`, `del()`, `invalidatePattern()`                                                   |
+| `libs/queue/`     | BullMQ + Redis             | Job queues, retry logic, dead-letter queue, base processor                                            |
+| `libs/logger/`    | Pino                       | Structured JSON logs + Apollo op-logging plugin                                                       |
+| `libs/auth/`      | Passport + JWT + CASL      | `JwtStrategy`, `GqlAuthGuard`, `CaslAbilityFactory`, `@CurrentUser()`, `RolesGuard`                   |
+| `libs/telemetry/` | OpenTelemetry + Prometheus | Tracing spans, metrics histograms, Jaeger exporter                                                    |
 | `libs/storage/`   | AWS S3                     | `upload()`, `getSignedUrl()`, `delete()` — object storage behind a thin interface (no public buckets) |
 
 ---
@@ -240,7 +242,7 @@ This maps _where each defense lives and what it protects_. It is descriptive; th
 | Introspection leakage    | Schema disclosure in prod                | `playground` + `introspection` disabled when `NODE_ENV=production` (`app.module.ts`)                                                      |
 | Error leakage            | Stack traces / internals to clients      | `gql-exception.filter.ts` maps exceptions to safe GraphQL errors; `SentryPlugin` captures full detail server-side only                    |
 | Secret management        | Committed credentials                    | Secrets via env (`ConfigService`); `.env.prod` never committed                                                                            |
-| CSRF                     | Cross-site request forgery               | Stateless **Bearer JWT** auth (token in `Authorization` header, no ambient session cookie) — no CSRF surface to exploit                    |
+| CSRF                     | Cross-site request forgery               | Stateless **Bearer JWT** auth (token in `Authorization` header, no ambient session cookie) — no CSRF surface to exploit                   |
 
 > **Known gaps & the checks that close them** (dependency/secret/SAST scanning, GraphQL Armor, batching caps, container hardening, token rotation, persisted-query allowlist, audit logging, **edge/volumetric DDoS mitigation, SSRF allowlisting on outbound platform calls, login brute-force lockout, file-upload validation**) are not described here because they are _actions you must take_, not facts about the system — they live as enforceable rules in `[engineering-guidelines.md](./engineering-guidelines.md)` §12 (and §13 for the integration layer).
 
@@ -250,7 +252,7 @@ This maps _where each defense lives and what it protects_. It is descriptive; th
 
 Config is loaded globally in `app.module.ts` from `.env.${NODE_ENV}` then `.env`. Per-environment files: `.env` (local), `.env.test` (test runner), `.env.prod` (production — never committed).
 
-Notable env vars: `PORT`, `DB_`_, `REDIS\__`, `JWT_SECRET`/`JWT_EXPIRES_IN`, `GQL_DEPTH_LIMIT`(7),`GQL_MAX_COMPLEXITY`(200),`ALLOWED_ORIGINS`, `OTEL_EXPORTER_JAEGER_ENDPOINT`, `SENTRY_DSN`; storage: `AWS_S3_BUCKET`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`; **global provider keys** (general capabilities, §13b): `REMOVE_BG_API_KEY`, `STABILITY_API_KEY`; i18n: `SUPPORTED_LOCALES` (e.g. `en,fr,de`), `DEFAULT_LOCALE` (`en`).
+Notable env vars: `PORT`, `DB_`\_, `REDIS\__`, `JWT_SECRET`/`JWT_EXPIRES_IN`, `GQL_DEPTH_LIMIT`(7),`GQL_MAX_COMPLEXITY`(200),`ALLOWED_ORIGINS`, `OTEL_EXPORTER_JAEGER_ENDPOINT`, `SENTRY_DSN`; storage: `AWS_S3_BUCKET`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`; **global provider keys** (general capabilities, §13b): `REMOVE_BG_API_KEY`, `STABILITY_API_KEY`; i18n: `SUPPORTED_LOCALES` (e.g. `en,fr,de`), `DEFAULT_LOCALE` (`en`).
 
 ---
 
@@ -267,12 +269,12 @@ Notable env vars: `PORT`, `DB_`_, `REDIS\__`, `JWT_SECRET`/`JWT_EXPIRES_IN`, `GQ
 
 `integrations/` is a sibling to `libs/` and is **the only place that knows how to talk to an external third-party API.** It holds two categories of provider, which differ in how they're selected:
 
-| Category | Examples | Platform-specific? | Provider resolved by |
-| --- | --- | --- | --- |
-| **Commerce platforms** | `commerce/magento/` | Yes — *is* the platform | **per-tenant** (the client's platform) |
-| **General capabilities** | `background-removal/`, `vectorization/`, `ai/` | No — work for any client | **global config** (your API keys) |
+| Category                 | Examples                                       | Platform-specific?       | Provider resolved by                   |
+| ------------------------ | ---------------------------------------------- | ------------------------ | -------------------------------------- |
+| **Commerce platforms**   | `commerce/magento/`                            | Yes — _is_ the platform  | **per-tenant** (the client's platform) |
+| **General capabilities** | `background-removal/`, `vectorization/`, `ai/` | No — work for any client | **global config** (your API keys)      |
 
-> Rule for what lands here: *"if this vendor shut down tomorrow, do I swap an adapter or rewrite infrastructure?"* Swap an adapter → `integrations/`. Rewrite infra → `libs/` (e.g. S3 lives in `libs/storage/`, §5).
+> Rule for what lands here: _"if this vendor shut down tomorrow, do I swap an adapter or rewrite infrastructure?"_ Swap an adapter → `integrations/`. Rewrite infra → `libs/` (e.g. S3 lives in `libs/storage/`, §5).
 
 ### 13a. Commerce platforms — `commerce/`
 
@@ -357,13 +359,15 @@ integrations/
 ```
 
 **Why these placements (the rules behind the tree):**
-- **Group by *capability*, not by technique.** `background-removal/` and `vectorization/` stay flat even though their vendors may use ML — that's an implementation detail the adapter hides. Only **inherently**-generative capabilities (no non-AI equivalent, e.g. text→image) go under `ai/`.
-- **Every *capability* gets a folder; only the *vendor* stays a filename until there's a 2nd vendor.** So `background-removal/`, `vectorization/`, and `ai/image-generation/` are all capability folders, but there's no `removebg/` or `stability/` vendor sub-folder (the filename carries the vendor). `ai/` is the umbrella grouping the generative capabilities.
+
+- **Group by _capability_, not by technique.** `background-removal/` and `vectorization/` stay flat even though their vendors may use ML — that's an implementation detail the adapter hides. Only **inherently**-generative capabilities (no non-AI equivalent, e.g. text→image) go under `ai/`.
+- **Every _capability_ gets a folder; only the _vendor_ stays a filename until there's a 2nd vendor.** So `background-removal/`, `vectorization/`, and `ai/image-generation/` are all capability folders, but there's no `removebg/` or `stability/` vendor sub-folder (the filename carries the vendor). `ai/` is the umbrella grouping the generative capabilities.
 - **`ai/` groups real shared concerns** — token/credit cost tracking, prompt inputs, model/version config, content moderation, higher latency.
 
 **Supporting infra & workflow:**
+
 - **S3 → `libs/storage/`** (an infra primitive we operate, §5), not `integrations/` — accessed via signed URLs, never a public bucket.
-- **Keys → `src/config/`** (e.g. `REMOVE_BG_API_KEY`, `STABILITY_API_KEY`), read through `ConfigService`. These are *global* product keys, so they do **not** go in the per-tenant `tenant-platform-config` (§13a).
+- **Keys → `src/config/`** (e.g. `REMOVE_BG_API_KEY`, `STABILITY_API_KEY`), read through `ConfigService`. These are _global_ product keys, so they do **not** go in the per-tenant `tenant-platform-config` (§13a).
 - **Workflow → a feature module** (illustrative: `modules/media/`). These ops are slow, costly, and can fail, so they run as **BullMQ jobs**, never inside a GraphQL request:
 
 ```
@@ -382,12 +386,15 @@ designer → generateImage / removeBackground mutation (GraphQL)
 The API is multilingual on **two independent axes**, both keyed off the **`Accept-Language`** header.
 
 ### Locale resolution
+
 `nestjs-i18n`'s `AcceptLanguageResolver` (wired for GraphQL context) reads `Accept-Language`, **normalizes** it (`en-US` → `en`), validates it against `SUPPORTED_LOCALES`, and falls back to `DEFAULT_LOCALE` when missing/unknown. The resolved locale is placed in the GQL context and exposed to resolvers/services via a `@CurrentLocale()` decorator (`common/decorators/`). Client-supplied locale is never trusted blindly — only allowlisted locales are honored.
 
 ### Axis 1 — App-message i18n (`libs/i18n/`)
+
 All user-facing system text — **validation errors, GraphQL error messages, emails/notifications** — comes from translation files (`libs/i18n/locales/<lang>/*.json`) via `I18nService`, never hardcoded strings. class-validator messages are localized through `nestjs-i18n`'s validation integration, and `gql-exception.filter.ts` translates error messages for the resolved locale.
 
 ### Axis 2 — Content i18n (localized product/category data)
+
 Domain content that differs per language (product/category **name, description**, …) is stored **per-locale**, separate from locale-neutral fields:
 
 ```
@@ -406,18 +413,18 @@ catalog entities (illustrative)
 
 ## 15. Layer responsibility summary
 
-| Layer             | Responsibility                                       | Key tech                  |
-| ----------------- | ---------------------------------------------------- | ------------------------- |
-| `src/modules/`    | Feature business logic                               | NestJS, `@nestjs/graphql` |
-| `src/common/`     | Decorators, guards, filters, pipes, scalars, plugins | class-validator, CASL     |
-| `src/config/`     | Typed configuration                                  | `@nestjs/config`          |
+| Layer             | Responsibility                                                                 | Key tech                                      |
+| ----------------- | ------------------------------------------------------------------------------ | --------------------------------------------- |
+| `src/modules/`    | Feature business logic                                                         | NestJS, `@nestjs/graphql`                     |
+| `src/common/`     | Decorators, guards, filters, pipes, scalars, plugins                           | class-validator, CASL                         |
+| `src/config/`     | Typed configuration                                                            | `@nestjs/config`                              |
 | `integrations/`   | External API adapters (anti-corruption layer): commerce + general capabilities | Magento REST, remove.bg, Stability (+ future) |
-| `libs/database/`  | Persistence                                          | TypeORM, PostgreSQL       |
-| `libs/cache/`     | Caching                                              | Redis, ioredis            |
-| `libs/queue/`     | Async jobs                                           | BullMQ, Redis             |
-| `libs/storage/`   | Object storage                                       | AWS S3                    |
-| `libs/i18n/`      | Localization (messages + locale resolution)          | nestjs-i18n               |
-| `libs/auth/`      | AuthN + AuthZ                                        | Passport, JWT, CASL       |
-| `libs/logger/`    | Structured logging                                   | Pino                      |
-| `libs/telemetry/` | Observability                                        | OpenTelemetry, Prometheus |
-| `test/`           | Quality assurance                                    | Jest, Supertest           |
+| `libs/database/`  | Persistence                                                                    | TypeORM, PostgreSQL                           |
+| `libs/cache/`     | Caching                                                                        | Redis, ioredis                                |
+| `libs/queue/`     | Async jobs                                                                     | BullMQ, Redis                                 |
+| `libs/storage/`   | Object storage                                                                 | AWS S3                                        |
+| `libs/i18n/`      | Localization (messages + locale resolution)                                    | nestjs-i18n                                   |
+| `libs/auth/`      | AuthN + AuthZ                                                                  | Passport, JWT, CASL                           |
+| `libs/logger/`    | Structured logging                                                             | Pino                                          |
+| `libs/telemetry/` | Observability                                                                  | OpenTelemetry, Prometheus                     |
+| `test/`           | Quality assurance                                                              | Jest, Supertest                               |

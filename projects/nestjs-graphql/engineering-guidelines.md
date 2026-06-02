@@ -1,9 +1,9 @@
 # Engineering Guidelines — NestJS Code-First GraphQL
 
 > **Purpose of this file (read after orienting).**
-> This is the **rulebook**, not the map. It answers *"how am I required to write, structure, and verify code here?"* — the conventions, the do's and don'ts, and the definition of done that every change (human or automated) must satisfy.
+> This is the **rulebook**, not the map. It answers _"how am I required to write, structure, and verify code here?"_ — the conventions, the do's and don'ts, and the definition of done that every change (human or automated) must satisfy.
 >
-> It is **prescriptive**, not descriptive. For *what the system is and where things live*, see `[codebase-context.md](./codebase-context.md)`. Don't restate the architecture here; reference it and state the rule.
+> It is **prescriptive**, not descriptive. For _what the system is and where things live_, see `[codebase-context.md](./codebase-context.md)`. Don't restate the architecture here; reference it and state the rule.
 >
 > Rule of thumb: every entry here should be phrased as something you **must / must not / should** do. If it's just a fact about the system, it belongs in the context file.
 
@@ -30,11 +30,14 @@ When creating `src/modules/<name>s/`, produce **all** of these, mirroring `users
 - `loaders/<name>.loader.ts` (`Scope.REQUEST`) if anything resolves this resource as a relation.
 - `mappers/<name>.mapper.ts` — pure `toGql()` / `toConnection()`.
 - `policies/manage-<name>.policy.ts` — CASL rules.
+- `subscribers/<name>-<event>.event.ts` — PubSub payload types, **only if** the resolver exposes `@Subscription`s (§3). Omit the folder when there are none.
 - `<name>.service.ts`, `<name>.resolver.ts`, `<name>.module.ts`, `index.ts`.
 - `__tests__/` with a spec per class (§11).
 - Register the module in `app.module.ts`.
 
 Do not invent a new folder layout or collapse these into fewer files "because the module is small." The uniformity is load-bearing for automation.
+
+**Naming conventions (required, not just illustrative):** files are **kebab-case** with a role suffix — `<name>.type.ts`, `*.input.ts`, `*.args.ts`, `*.enum.ts`, `*.entity.ts`, `*.repository.ts`, `*.loader.ts`, `*.mapper.ts`, `*.policy.ts`, `*.resolver.ts`, `*.service.ts`, `*.module.ts`, `*.event.ts`, `*.spec.ts`. Classes are **PascalCase** matching the file (`CreateUserInput` ↔ `create-user.input.ts`). GraphQL field names are camelCase; enum values follow `registerEnumType`.
 
 ---
 
@@ -45,7 +48,7 @@ Do not invent a new folder layout or collapse these into fewer files "because th
 - Use `@nestjs/graphql` composition helpers (`PartialType`, `PickType`, `OmitType`, `IntersectionType`) instead of redeclaring fields. `UpdateXInput extends PartialType(CreateXInput)`.
 - Nullability is explicit: mark optional fields `{ nullable: true }`; for list fields decide between `nullable: 'items'`, `'itemsAndList'` deliberately.
 - Validate **all** input at the DTO with `class-validator` decorators (`@IsEmail`, `@MinLength`, `@Max`, `@IsOptional`, `@IsUrl`, …). The global `ValidationPipe` runs with `whitelist: true` + `forbidNonWhitelisted: true`, so undeclared fields are rejected — never rely on manual checks in the resolver for shape validation.
-- class-validator covers **all shape/format validation** — including regex (`@Matches`), nested (`@ValidateNested` + `@Type`), conditional (`@ValidateIf`), and complex/cross-field rules via a custom `@ValidatorConstraint`/decorator. **must not** put **business rules** (uniqueness, "referenced id exists", stock, permissions, anything needing the DB or other records) in a validator — those belong in the **service** (§4). Rule: *format → DTO validator; rules needing state/auth → service.*
+- class-validator covers **all shape/format validation** — including regex (`@Matches`), nested (`@ValidateNested` + `@Type`), conditional (`@ValidateIf`), and complex/cross-field rules via a custom `@ValidatorConstraint`/decorator. **must not** put **business rules** (uniqueness, "referenced id exists", stock, permissions, anything needing the DB or other records) in a validator — those belong in the **service** (§4). Rule: _format → DTO validator; rules needing state/auth → service._
 - Pagination args extend the shared pattern: `first` (with `@Min`/`@Max`), `after` (Relay cursor), `orderBy`, `direction`.
 - Reuse the shared custom scalars in `common/scalars/` (`Date`, `JSON`, `Upload`) — don't reinvent a date/JSON scalar per module. File uploads always go through the `Upload` scalar (and the §12 upload validation rules).
 
@@ -60,6 +63,20 @@ Do not invent a new folder layout or collapse these into fewer files "because th
 - Annotate cost with `@Complexity(n)` and apply `@Throttle(...)` / `@UseInterceptors(CacheInterceptor)` where appropriate.
 - Relation fields use `@ResolveField` → loader. Example: `getPosts(@Parent() user) { return this.postLoader.load(user.id); }`.
 
+### Subscriptions (`@Subscription`)
+
+WebSocket subscriptions do **not** run through the HTTP guard pipeline, so their security must be handled explicitly:
+
+- **must** authenticate at the **connection**: validate the JWT in the `graphql-ws` `onConnect`/`connectionParams` and attach the user to the subscription context. An unauthenticated socket is rejected at connect, not per message.
+- **must** authorize **per subscription** in the resolver/`filter` using the connection's user (same CASL check as queries) — never assume a connected socket may receive every event.
+- **must** scope the `filter` so a subscriber only receives events they're entitled to (e.g. own-tenant, own-record); the payload **must not** leak fields the user can't see (run it through the mapper, like queries).
+- **should** keep subscription payloads small (ids + changed fields) and let clients re-query, to avoid over-exposure and large fan-out.
+
+### REST `/health`
+
+- **must** keep `GET /health` (Terminus) **public/unauthenticated** (`@Public()`) and limited to liveness/readiness (db + redis); it returns no business data.
+- **must not** add other REST controllers — the domain API is GraphQL-only; REST is reserved for infra probes.
+
 ---
 
 ## 4. Services — the home of business logic
@@ -67,6 +84,7 @@ Do not invent a new folder layout or collapse these into fewer files "because th
 - Services depend on repositories, mappers, the `CaslAbilityFactory`, and event emitters — injected via the constructor. **Never inject the GraphQL request or use GQL types as logic primitives.**
 - A service method that returns data to a resolver returns a **GQL model** (run the mapper), never a raw `Entity`.
 - Mutations that change state should emit domain events (`this.events.emit('user.created', …)`) for decoupled side effects; don't inline cross-domain side effects.
+- **must** emit domain events **only after the transaction commits** — never mid-transaction. If the write rolls back, the event must not fire (otherwise consumers act on data that doesn't exist). For multi-write operations (§6), emit after the `transaction.service` block resolves successfully.
 - Hash secrets in the service (`bcrypt`, cost ≥ 12), never in the resolver or mapper.
 - Throw Nest's semantic exceptions — `NotFoundException`, `ForbiddenException`, `UnauthorizedException` — not bare `Error`. The GQL exception filter maps these to proper GraphQL errors.
 
@@ -93,6 +111,7 @@ Do not invent a new folder layout or collapse these into fewer files "because th
 - Use snake_case column names via `{ name: 'avatar_url' }`; index columns you filter/lookup on (`@Index()`).
 - Schema changes ship as timestamped migrations in `libs/database/migrations/`. Never rely on `synchronize: true` outside tests.
 - **must** wrap any operation that performs **more than one write** (multiple `save()`s, a write plus a related-record write, the sync upserts) in a single transaction via `libs/database/transaction.service` — never leave multi-step writes non-atomic, or a mid-operation failure leaves partial data.
+- **must** give every migration a real `down()` (no empty/`throw` bodies) so it's reversible. For schema changes on live tables, follow **expand-contract** (add nullable/new → backfill → switch reads/writes → drop old in a later migration) so deploys stay **zero-downtime**; never rename/drop a column a running release still uses in a single step.
 
 ---
 
@@ -110,6 +129,26 @@ Do not invent a new folder layout or collapse these into fewer files "because th
 - Add new Apollo plugins to the pipeline in `app.module.ts` in a deliberate order (complexity/depth limits run **before** expensive work).
 - All logging goes through the Pino logger service (structured JSON) — no `console.log`.
 - Respect the configured `GQL_DEPTH_LIMIT` and `GQL_MAX_COMPLEXITY`; don't disable them to make a heavy query pass — fix the query or paginate.
+
+### Caching (`libs/cache/`, Redis)
+
+- **must** namespace cache keys as `<entity>:<tenantId>:<identifier>` (tenant-scoped) — never cache tenant data under a global key.
+- **must** invalidate on write: any mutation that changes an entity **must** clear its cache entries (`cache.del(...)` / `invalidatePattern('<entity>:<tenantId>:*')`) in the same flow — a soft-delete (§6) counts as a write and must invalidate too, or stale rows resurface.
+- **must** set an explicit TTL on every cached value (no unbounded entries); treat the cache as a perf optimization, never a source of truth.
+- **must not** cache per-user/authorized results under a shared key, or cache anything containing secrets/PII.
+
+### Async work (`libs/queue/`, BullMQ)
+
+- **must** queue (not inline) any work that is slow, calls an external API, or must survive failure/retry (sync, image/AI ops, emails). Keep request-path work synchronous and fast.
+- **must** make every processor **idempotent** (safe to run twice — dedupe on a job/business key); jobs can retry.
+- **must** configure bounded retries with backoff and route exhausted jobs to a **dead-letter queue**; never silently drop a failed job. Surface DLQ depth to monitoring.
+- **must** propagate `tenantId` + trace context into the job payload so async work stays tenant-scoped and traceable.
+
+### Observability (`libs/telemetry/`)
+
+- **must** create an OpenTelemetry **span** around external calls and other expensive operations (DB-heavy queries, provider calls, jobs), and propagate the **trace/request id** through logs and into queued jobs so a request is followable end-to-end.
+- **must** attach **Sentry context** (user id, tenant id, request id, operation name) to captured errors — never raw PII.
+- **should** emit metrics for key operations (request/job latency, error rate, queue depth, external-call duration) via the Prometheus exporter.
 
 ---
 
@@ -142,6 +181,14 @@ A change is complete only when the appropriate tests exist and pass.
 - **e2e tests** (`test/e2e/`): mock nothing except true external services. Drive through the real schema with the `gqlRequest`/`getAuthToken` helpers. Cover the happy path, auth failure (401/unauthorized), authorization failure (forbidden), and validation/duplicate errors.
 - Every authorization rule must have both an **allowed** and a **denied** test. Every "secret not exposed" guarantee must have an explicit test.
 
+**"Done" is objective — all of these must pass, not just "tests run":**
+
+- `tsc --noEmit` clean (no type errors) and ESLint/Prettier clean (no warnings treated as errors).
+- Unit + e2e suites green.
+- Coverage ≥ the project threshold (default **80%** lines/branches; never lower it to pass).
+- The §12 security CI gates pass (`npm audit`, secret scan).
+- A change is not "done" until the full CI pipeline is green — local green alone is not done.
+
 ---
 
 ## 12. Security — required checks & gates
@@ -149,6 +196,7 @@ A change is complete only when the appropriate tests exist and pass.
 The defenses already in the architecture (JWT auth, CASL, `ValidationPipe`, depth/complexity limits, secret hiding, parameterized queries) are mapped in [`codebase-context.md`](./codebase-context.md) §10. This section is what you **must do** to keep them intact and to close known gaps. Treat the **must** items as merge-blocking gates.
 
 ### Per-change (every PR)
+
 - **must** keep the auth → authz → validate chain intact: a new query/mutation is behind `GqlAuthGuard` unless explicitly `@Public()`, role-gated with `@Roles()` where relevant, and resource-authorized via CASL in the service. A deny-path test is required (see §11).
 - **must** put `@Complexity(n)` on every new resolver field and keep total query cost within `GQL_MAX_COMPLEXITY`; never raise the depth/complexity limits to force a heavy query through.
 - **must not** add a `@Field()` that exposes a secret/PII column; new sensitive columns are `{ select: false }` + `@HideField()`, and the mapper omits them. Add a "not exposed" test.
@@ -156,36 +204,50 @@ The defenses already in the architecture (JWT auth, CASL, `ValidationPipe`, dept
 - **must not** introduce a new secret as a literal; route it through `ConfigService`/env and document it. Run secret scanning (below) before pushing.
 
 ### Transport & error exposure
+
 - **must** keep Helmet enabled and restrict CORS to an explicit `ALLOWED_ORIGINS` allowlist — never `origin: '*'` (especially with `credentials: true`). Don't widen CORS to make a client work; add its origin to the allowlist.
 - **must** serve all non-local traffic over TLS (terminated at the proxy, `docker/nginx.conf`); never expose the app port directly in production.
 - **must not** leak stack traces or internal messages to clients: throw Nest's semantic exceptions, let `gql-exception.filter.ts` map them to safe client-facing errors, and keep full detail server-side only (logs + `SentryPlugin`).
 
+### Error shape (the client contract)
+
+- **must** give every error a stable machine-readable code in `extensions.code` from a **fixed enum** (e.g. `UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`, `CONFLICT`, `RATE_LIMITED`, `INTERNAL`) — clients branch on the code, not on message text.
+- **must** keep the error payload to `{ message (safe), extensions.code, optional field path }`. Never include stack traces, SQL, internal identifiers, or vendor error bodies. In production, unmapped/unexpected errors collapse to a generic `INTERNAL` + opaque message (full detail to Sentry only).
+- **must** map validation failures to `VALIDATION_FAILED` with per-field info (localized per §14), not a raw class-validator dump.
+- **should** allow **partial success**: return resolved data alongside a `errors[]` entry for the failed field rather than failing the whole operation, when fields are independent.
+
 ### Abuse & flooding (defense in depth)
-- **must** keep `@Throttle` / `ThrottlerModule` as the application-layer rate limit — but treat it as the *inner* layer only. **Volumetric/network DDoS must be absorbed at the edge** (WAF/CDN + nginx connection & request-rate limits in `docker/nginx.conf`); don't rely on app throttling alone.
+
+- **must** keep `@Throttle` / `ThrottlerModule` as the application-layer rate limit — but treat it as the _inner_ layer only. **Volumetric/network DDoS must be absorbed at the edge** (WAF/CDN + nginx connection & request-rate limits in `docker/nginx.conf`); don't rely on app throttling alone.
 - **must** rate-limit and **lock out** authentication attempts per account **and** per IP with exponential backoff — global throttling is not enough to stop credential stuffing / brute-force on `login`.
 - **must** validate every file upload behind `upload.scalar.ts`: enforce an allowlisted MIME type and a max size, store outside the web root, and **should** virus-scan untrusted uploads before processing.
 - **must not** switch from Bearer-token auth to cookie/session auth without adding CSRF protection (double-submit token or SameSite) — the current CSRF safety depends on there being no ambient credential (context §10).
 
 ### CI gates (add to `.github/workflows/`)
+
 - **must** `npm ci` against a committed lockfile (never `npm install` in CI) and run **`npm audit --audit-level=high`** — high/critical advisories fail the build.
 - **must** run **secret scanning** (e.g. `gitleaks`) on every push; a detected secret fails the build and the secret is rotated, not just deleted.
 - **should** run **SAST** (CodeQL or Semgrep with a NestJS/GraphQL ruleset) on PRs.
 - **should** keep dependencies current via Dependabot/Renovate and review the diffs (supply-chain).
 
 ### GraphQL hardening (beyond depth + complexity)
+
 - **should** enforce **alias-count, directive-count, and token-count** limits (e.g. GraphQL Armor) — depth/complexity alone don't stop alias/batch amplification.
 - **should** cap **request batching** (max array-batched operations per HTTP request).
 - **should**, in production, prefer a **persisted-query allowlist** over open APQ, and keep `introspection`/`playground` disabled (already wired to `NODE_ENV`).
 
 ### Auth & token hardening
+
 - **should** issue short-lived access tokens with refresh-token rotation, validate JWT `aud`/`iss`, and support revocation/denylist on logout.
 - **must** hash passwords with `bcrypt` (cost ≥ 12) in the service layer only.
 
 ### Container & runtime
+
 - **must** run the container as a **non-root user**, install with `npm ci --omit=dev`, and pin the base image to the LTS digest (`node:24.16.0-...`, see §9).
 - **should** scan the built image (Trivy/Grype) in CI and fail on high/critical OS-package CVEs.
 
 ### Auditability
+
 - **should** emit an audit log entry for privileged mutations (actor, action, target id) distinct from operational logs.
 
 ---
@@ -195,6 +257,7 @@ The defenses already in the architecture (JWT auth, CASL, `ValidationPipe`, dept
 The descriptive map — the `integrations/` anti-corruption layer, its two categories (commerce + general capabilities), the two mapper boundaries, and the flows — is in [`codebase-context.md`](./codebase-context.md) §13. These are the rules that keep it clean.
 
 ### Commerce platforms (`integrations/commerce/`, per-tenant)
+
 - **must** route every external-platform call through a `CommercePlatformProvider`. Business code (services, resolvers) **must not** import a platform SDK, hit a Magento/Shopify URL, or branch on `platform === '…'` — only the adapter under `integrations/commerce/<platform>/` may.
 - **must** return **canonical DTOs** from providers, never raw platform payloads. The platform → canonical conversion happens in the adapter's mapper; nothing platform-shaped crosses into `modules/`.
 - **must** keep the read path pure Postgres: catalog queries serving the admin/designer **must not** call the platform live (per the Postgres-after-sync decision). Freshness comes from sync, not request-time fetches.
@@ -208,6 +271,7 @@ The descriptive map — the `integrations/` anti-corruption layer, its two categ
 - **should** add a new platform by creating `integrations/commerce/<platform>/` that implements the interface plus a registry case — with **zero** change to `modules/`.
 
 ### General capability providers (bg-removal, vectorization, `ai/`, global config)
+
 - **must** put every external image/AI vendor behind a **capability interface** under `integrations/<capability>/` (e.g. `background-removal/`, `vectorization/`) — `ai/` is reserved for **inherently-generative** capabilities only. Business code calls the interface, never the vendor SDK/URL directly.
 - **must** return **canonical DTOs** from these providers too; a vendor swap must not ripple into `modules/`.
 - **must** run any long-running/costly op (bg-removal, vectorization, image generation) as a **BullMQ job**, never inside a GraphQL request. The mutation persists the asset as `PENDING`, enqueues, and returns an id; the worker calls the provider and flips it to `READY`.
@@ -215,7 +279,7 @@ The descriptive map — the `integrations/` anti-corruption layer, its two categ
 - **must** keep these vendor keys (`REMOVE_BG_API_KEY`, `STABILITY_API_KEY`, …) in `src/config/` read via `ConfigService` — **global** product keys, not the per-tenant `tenant-platform-config`. (Only move a key to tenant config if a client supplies their own.)
 - **must** validate source uploads (MIME/size, per §12) before sending them to a vendor, and **must** quota/rate-limit AI calls **per tenant** — generation costs real money, so treat unbounded calls as an abuse vector.
 - **must** wrap each provider's client with timeout + retry/backoff + circuit-breaker (and SSRF-safe URL handling if a base URL is ever configurable), same as commerce clients.
-- **should** give every *capability* its own folder (`background-removal/`, `vectorization/`, `ai/image-generation/`), but keep the *vendor* as a filename prefix (`removebg.*`, `stability.*`) — add a vendor sub-folder only once a 2nd vendor exists. Group a capability under `ai/` only when it's genuinely generative; otherwise put it flat at `integrations/<capability>/`.
+- **should** give every _capability_ its own folder (`background-removal/`, `vectorization/`, `ai/image-generation/`), but keep the _vendor_ as a filename prefix (`removebg.*`, `stability.*`) — add a vendor sub-folder only once a 2nd vendor exists. Group a capability under `ai/` only when it's genuinely generative; otherwise put it flat at `integrations/<capability>/`.
 
 ---
 
@@ -256,8 +320,14 @@ The map (locale resolution, app-message vs content i18n, per-store-view sync) is
 - ❌ Running background-removal / vectorization / image-generation synchronously in a GraphQL request instead of a BullMQ job.
 - ❌ Serving generated assets from a public S3 bucket instead of short-lived signed URLs, or skipping tenant scoping on asset access.
 - ❌ Putting a global vendor key (`REMOVE_BG_API_KEY`, …) in the per-tenant config, or leaving AI calls unquota'd per tenant.
-- ❌ Filing a not-inherently-AI capability (e.g. vectorization) under `ai/`, or pre-creating a *vendor* sub-folder before a 2nd vendor exists (capability folders are always fine).
+- ❌ Filing a not-inherently-AI capability (e.g. vectorization) under `ai/`, or pre-creating a _vendor_ sub-folder before a 2nd vendor exists (capability folders are always fine).
 - ❌ Hardcoding user-facing strings (errors, validation messages, emails) instead of `I18nService` translation keys.
 - ❌ Storing localized text as columns on the base entity instead of a per-locale `*_translation` table.
 - ❌ Honoring an arbitrary client locale without allowlisting against `SUPPORTED_LOCALES`, or erroring/returning empty instead of falling back to `DEFAULT_LOCALE`.
-
+- ❌ Exposing a `@Subscription` without per-subscription auth + a tenant/ownership `filter`, or assuming a connected socket may receive every event.
+- ❌ Caching tenant data under a global key, or leaving a cache entry un-invalidated after a mutation/soft-delete.
+- ❌ Emitting a domain event before the transaction commits (consumers act on data that may roll back).
+- ❌ Returning an error without a stable `extensions.code`, or leaking stack traces / SQL / vendor error bodies to clients.
+- ❌ A migration with an empty/`throw` `down()`, or a rename/drop that isn't expand-contract (breaks zero-downtime deploys).
+- ❌ Adding a REST controller for anything other than the `/health` infra probe.
+- ❌ Calling "done" on a red CI, failing type-check/lint, or below the coverage threshold.
