@@ -3,7 +3,7 @@
 > **Purpose of this file (read after orienting).**
 > This is the **rulebook**, not the map. It answers *"how am I required to write, structure, and verify code here?"* — the conventions, the do's and don'ts, and the definition of done that every change (human or automated) must satisfy.
 >
-> It is **prescriptive**, not descriptive. For *what the system is and where things live*, see [`codebase-context.md`](./codebase-context.md). Don't restate the architecture here; reference it and state the rule.
+> It is **prescriptive**, not descriptive. For *what the system is and where things live*, see `[codebase-context.md](./codebase-context.md)`. Don't restate the architecture here; reference it and state the rule.
 >
 > Rule of thumb: every entry here should be phrased as something you **must / must not / should** do. If it's just a fact about the system, it belongs in the context file.
 
@@ -22,17 +22,17 @@
 
 ## 1. Adding a new feature module — required checklist
 
-When creating `src/modules/<domain>/`, produce **all** of these, mirroring `users/`:
+When creating `src/modules/<name>s/`, produce **all** of these, mirroring `users/`. (`<name>` = the NestJS CLI `<name>` argument, singular e.g. `user`; `<name>s` = plural; `<Name>` = PascalCase class. Scaffold with `nest g resource <name>`. See [`codebase-context.md`](./codebase-context.md) §4 for the full tree and placeholder legend.)
 
-- [ ] `models/<x>.type.ts` — `@ObjectType()` with described `@Field()`s; a `<x>-connection.type.ts` if it's listable; enums via `registerEnumType()`.
-- [ ] `dto/create-<x>.input.ts` + `update-<x>.input.ts` (`extends PartialType(...)`) + `<x>s-filter.args.ts` (`@ArgsType()`).
-- [ ] `entities/<x>.entity.ts` (`@Entity()` extending `BaseEntity`) + `<x>.repository.ts` (custom queries).
-- [ ] `loaders/<x>.loader.ts` (`Scope.REQUEST`) if anything resolves this entity as a relation.
-- [ ] `mappers/<x>.mapper.ts` — pure `toGql()` / `toConnection()`.
-- [ ] `policies/manage-<x>.policy.ts` — CASL rules.
-- [ ] `<x>.service.ts`, `<x>.resolver.ts`, `<x>.module.ts`, `index.ts`.
-- [ ] `__tests__/` with a spec per class (§10).
-- [ ] Register the module in `app.module.ts`.
+- `models/<name>.type.ts` — `@ObjectType()` with described `@Field()`s; a `<name>-connection.type.ts` if it's listable; enums via `registerEnumType()`.
+- `dto/create-<name>.input.ts` + `update-<name>.input.ts` (`extends PartialType(...)`) + `<name>s-filter.args.ts` (`@ArgsType()`).
+- `entities/<name>.entity.ts` (`@Entity()` extending `BaseEntity`) + `<name>.repository.ts` (custom queries).
+- `loaders/<name>.loader.ts` (`Scope.REQUEST`) if anything resolves this resource as a relation.
+- `mappers/<name>.mapper.ts` — pure `toGql()` / `toConnection()`.
+- `policies/manage-<name>.policy.ts` — CASL rules.
+- `<name>.service.ts`, `<name>.resolver.ts`, `<name>.module.ts`, `index.ts`.
+- `__tests__/` with a spec per class (§11).
+- Register the module in `app.module.ts`.
 
 Do not invent a new folder layout or collapse these into fewer files "because the module is small." The uniformity is load-bearing for automation.
 
@@ -110,14 +110,23 @@ Do not invent a new folder layout or collapse these into fewer files "because th
 
 ---
 
-## 9. Configuration & secrets
+## 9. Runtime & toolchain
+
+- Target the **current Node.js active LTS: `24.16.0` ("Krypton")**. Pin it explicitly so local, CI, and Docker all agree:
+  - `.nvmrc` → `24.16.0`
+  - `package.json` → `"engines": { "node": ">=24.16.0 <25" }`
+  - `docker/Dockerfile` base image → `node:24.16.0-alpine` (or the slim variant).
+- Stay on the LTS line — bump the patch when a new `24.x` LTS ships; do **not** jump to a non-LTS major (odd majors / `Current`) for production.
+- Don't use APIs newer than the pinned LTS guarantees, and don't downgrade below the `engines` floor to make a dependency install.
+
+## 10. Configuration & secrets
 
 - Read config only through `ConfigService` + a typed `registerAs` namespace in `src/config/`. Don't sprinkle `process.env.X` through business code.
 - Never commit `.env.prod` or hardcode secrets. New config keys get added to the relevant `*.config.ts`, documented, and given safe local defaults in `.env`.
 
 ---
 
-## 10. Testing — definition of done
+## 11. Testing — definition of done
 
 A change is complete only when the appropriate tests exist and pass.
 
@@ -132,7 +141,82 @@ A change is complete only when the appropriate tests exist and pass.
 
 ---
 
-## 11. Anti-patterns — do NOT do these
+## 12. Security — required checks & gates
+
+The defenses already in the architecture (JWT auth, CASL, `ValidationPipe`, depth/complexity limits, secret hiding, parameterized queries) are mapped in [`codebase-context.md`](./codebase-context.md) §10. This section is what you **must do** to keep them intact and to close known gaps. Treat the **must** items as merge-blocking gates.
+
+### Per-change (every PR)
+- **must** keep the auth → authz → validate chain intact: a new query/mutation is behind `GqlAuthGuard` unless explicitly `@Public()`, role-gated with `@Roles()` where relevant, and resource-authorized via CASL in the service. A deny-path test is required (see §11).
+- **must** put `@Complexity(n)` on every new resolver field and keep total query cost within `GQL_MAX_COMPLEXITY`; never raise the depth/complexity limits to force a heavy query through.
+- **must not** add a `@Field()` that exposes a secret/PII column; new sensitive columns are `{ select: false }` + `@HideField()`, and the mapper omits them. Add a "not exposed" test.
+- **must** build all DB access with parameterized query-builder values — no string interpolation of user input.
+- **must not** introduce a new secret as a literal; route it through `ConfigService`/env and document it. Run secret scanning (below) before pushing.
+
+### Transport & error exposure
+- **must** keep Helmet enabled and restrict CORS to an explicit `ALLOWED_ORIGINS` allowlist — never `origin: '*'` (especially with `credentials: true`). Don't widen CORS to make a client work; add its origin to the allowlist.
+- **must** serve all non-local traffic over TLS (terminated at the proxy, `docker/nginx.conf`); never expose the app port directly in production.
+- **must not** leak stack traces or internal messages to clients: throw Nest's semantic exceptions, let `gql-exception.filter.ts` map them to safe client-facing errors, and keep full detail server-side only (logs + `SentryPlugin`).
+
+### Abuse & flooding (defense in depth)
+- **must** keep `@Throttle` / `ThrottlerModule` as the application-layer rate limit — but treat it as the *inner* layer only. **Volumetric/network DDoS must be absorbed at the edge** (WAF/CDN + nginx connection & request-rate limits in `docker/nginx.conf`); don't rely on app throttling alone.
+- **must** rate-limit and **lock out** authentication attempts per account **and** per IP with exponential backoff — global throttling is not enough to stop credential stuffing / brute-force on `login`.
+- **must** validate every file upload behind `upload.scalar.ts`: enforce an allowlisted MIME type and a max size, store outside the web root, and **should** virus-scan untrusted uploads before processing.
+- **must not** switch from Bearer-token auth to cookie/session auth without adding CSRF protection (double-submit token or SameSite) — the current CSRF safety depends on there being no ambient credential (context §10).
+
+### CI gates (add to `.github/workflows/`)
+- **must** `npm ci` against a committed lockfile (never `npm install` in CI) and run **`npm audit --audit-level=high`** — high/critical advisories fail the build.
+- **must** run **secret scanning** (e.g. `gitleaks`) on every push; a detected secret fails the build and the secret is rotated, not just deleted.
+- **should** run **SAST** (CodeQL or Semgrep with a NestJS/GraphQL ruleset) on PRs.
+- **should** keep dependencies current via Dependabot/Renovate and review the diffs (supply-chain).
+
+### GraphQL hardening (beyond depth + complexity)
+- **should** enforce **alias-count, directive-count, and token-count** limits (e.g. GraphQL Armor) — depth/complexity alone don't stop alias/batch amplification.
+- **should** cap **request batching** (max array-batched operations per HTTP request).
+- **should**, in production, prefer a **persisted-query allowlist** over open APQ, and keep `introspection`/`playground` disabled (already wired to `NODE_ENV`).
+
+### Auth & token hardening
+- **should** issue short-lived access tokens with refresh-token rotation, validate JWT `aud`/`iss`, and support revocation/denylist on logout.
+- **must** hash passwords with `bcrypt` (cost ≥ 12) in the service layer only.
+
+### Container & runtime
+- **must** run the container as a **non-root user**, install with `npm ci --omit=dev`, and pin the base image to the LTS digest (`node:24.16.0-...`, see §9).
+- **should** scan the built image (Trivy/Grype) in CI and fail on high/critical OS-package CVEs.
+
+### Auditability
+- **should** emit an audit log entry for privileged mutations (actor, action, target id) distinct from operational logs.
+
+---
+
+## 13. External integrations
+
+The descriptive map — the `integrations/` anti-corruption layer, its two categories (commerce + general capabilities), the two mapper boundaries, and the flows — is in [`codebase-context.md`](./codebase-context.md) §13. These are the rules that keep it clean.
+
+### Commerce platforms (`integrations/commerce/`, per-tenant)
+- **must** route every external-platform call through a `CommercePlatformProvider`. Business code (services, resolvers) **must not** import a platform SDK, hit a Magento/Shopify URL, or branch on `platform === '…'` — only the adapter under `integrations/commerce/<platform>/` may.
+- **must** return **canonical DTOs** from providers, never raw platform payloads. The platform → canonical conversion happens in the adapter's mapper; nothing platform-shaped crosses into `modules/`.
+- **must** keep the read path pure Postgres: catalog queries serving the admin/designer **must not** call the platform live (per the Postgres-after-sync decision). Freshness comes from sync, not request-time fetches.
+- **must** run sync as a **BullMQ job**, never inside a GraphQL request. `syncNow` enqueues and returns a `syncRunId`; progress is tracked in the `sync-run` entity.
+- **must** make sync **idempotent** — upsert keyed on `(tenantId, platform, externalId)`; reconcile platform-removed items as soft-deletes (never duplicate on re-sync).
+- **must** scope every catalog/sync read and write by `tenantId` (from the JWT), enforced in the repository layer, not per query. Cross-tenant data access is a security bug, not a feature gap.
+- **must** store platform credentials encrypted in `tenant-platform-config` and never expose them via a `@Field()` (see §12 and context §10).
+- **must** wrap platform calls in `<platform>.client.ts` with timeout + retry/backoff + circuit-breaker so a platform outage can't cascade into our API; cache read-through in Redis where it helps.
+- **must** guard against **SSRF** on outbound calls: a tenant-configured `baseUrl` must match an allowlisted scheme/host pattern (HTTPS only), and requests to loopback, link-local, and private/internal IP ranges must be rejected — including across redirects. Never let tenant config point the server at an arbitrary address.
+- **must not** persist platform-owned cart contents — `addToCart` proxies to the platform (which owns cart & checkout) and returns a canonical `CartDTO`; keep at most a thin session ↔ platform-cart reference.
+- **should** add a new platform by creating `integrations/commerce/<platform>/` that implements the interface plus a registry case — with **zero** change to `modules/`.
+
+### General capability providers (bg-removal, vectorization, `ai/`, global config)
+- **must** put every external image/AI vendor behind a **capability interface** under `integrations/<capability>/` (e.g. `background-removal/`, `vectorization/`) — `ai/` is reserved for **inherently-generative** capabilities only. Business code calls the interface, never the vendor SDK/URL directly.
+- **must** return **canonical DTOs** from these providers too; a vendor swap must not ripple into `modules/`.
+- **must** run any long-running/costly op (bg-removal, vectorization, image generation) as a **BullMQ job**, never inside a GraphQL request. The mutation persists the asset as `PENDING`, enqueues, and returns an id; the worker calls the provider and flips it to `READY`.
+- **must** store outputs in S3 via `libs/storage/` and serve them through **short-lived signed URLs** — never a public bucket; asset access is `tenantId`-scoped.
+- **must** keep these vendor keys (`REMOVE_BG_API_KEY`, `STABILITY_API_KEY`, …) in `src/config/` read via `ConfigService` — **global** product keys, not the per-tenant `tenant-platform-config`. (Only move a key to tenant config if a client supplies their own.)
+- **must** validate source uploads (MIME/size, per §12) before sending them to a vendor, and **must** quota/rate-limit AI calls **per tenant** — generation costs real money, so treat unbounded calls as an abuse vector.
+- **must** wrap each provider's client with timeout + retry/backoff + circuit-breaker (and SSRF-safe URL handling if a base URL is ever configurable), same as commerce clients.
+- **should** give every *capability* its own folder (`background-removal/`, `vectorization/`, `ai/image-generation/`), but keep the *vendor* as a filename prefix (`removebg.*`, `stability.*`) — add a vendor sub-folder only once a 2nd vendor exists. Group a capability under `ai/` only when it's genuinely generative; otherwise put it flat at `integrations/<capability>/`.
+
+---
+
+## 14. Anti-patterns — do NOT do these
 
 - ❌ Editing `schema.gql` by hand.
 - ❌ Returning a TypeORM entity from a service to a resolver (skipping the mapper).
@@ -145,3 +229,16 @@ A change is complete only when the appropriate tests exist and pass.
 - ❌ Trusting client-supplied ids for ownership instead of checking CASL against the loaded entity.
 - ❌ `console.log`, bare `throw new Error(...)`, or `process.env` reads in business code.
 - ❌ Shipping a feature without its co-located unit tests and the deny-path authorization tests.
+- ❌ Calling a platform SDK/URL, or branching on the platform name, anywhere outside `integrations/commerce/<platform>/`.
+- ❌ Reading product/category/attribute data live from the platform in a request that serves the admin/designer (bypassing the synced Postgres copy).
+- ❌ Running a full catalog sync synchronously inside a GraphQL resolver instead of a BullMQ job.
+- ❌ Querying catalog/sync data without a `tenantId` scope, or letting one tenant read another's data.
+- ❌ Returning raw platform payloads (or persisting platform cart contents) instead of canonical DTOs.
+- ❌ Making an outbound request to a tenant-supplied `baseUrl` without allowlist + private-IP-range validation (SSRF).
+- ❌ Relying on app-level `@Throttle` alone for DDoS, or on global throttling alone to stop login brute-force.
+- ❌ Calling an image/AI vendor SDK or URL directly from a service instead of through a capability interface in `integrations/`.
+- ❌ Running background-removal / vectorization / image-generation synchronously in a GraphQL request instead of a BullMQ job.
+- ❌ Serving generated assets from a public S3 bucket instead of short-lived signed URLs, or skipping tenant scoping on asset access.
+- ❌ Putting a global vendor key (`REMOVE_BG_API_KEY`, …) in the per-tenant config, or leaving AI calls unquota'd per tenant.
+- ❌ Filing a not-inherently-AI capability (e.g. vectorization) under `ai/`, or pre-creating a *vendor* sub-folder before a 2nd vendor exists (capability folders are always fine).
+
