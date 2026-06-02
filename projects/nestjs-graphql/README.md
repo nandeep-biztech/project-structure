@@ -355,8 +355,7 @@ my-enterprise-app/
 │
 ├── scripts/
 │   ├── seed.ts                                    # Runs all seeds in order
-│   ├── migrate.ts                                 # TypeORM migration runner
-│   └── codegen.ts                                 # GQL codegen for client consumers
+│   └── migrate.ts                                 # TypeORM migration runner
 │
 ├── docker/
 │   ├── Dockerfile                                 # Multi-stage: build → production
