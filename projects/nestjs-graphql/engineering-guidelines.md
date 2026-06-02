@@ -45,7 +45,9 @@ Do not invent a new folder layout or collapse these into fewer files "because th
 - Use `@nestjs/graphql` composition helpers (`PartialType`, `PickType`, `OmitType`, `IntersectionType`) instead of redeclaring fields. `UpdateXInput extends PartialType(CreateXInput)`.
 - Nullability is explicit: mark optional fields `{ nullable: true }`; for list fields decide between `nullable: 'items'`, `'itemsAndList'` deliberately.
 - Validate **all** input at the DTO with `class-validator` decorators (`@IsEmail`, `@MinLength`, `@Max`, `@IsOptional`, `@IsUrl`, …). The global `ValidationPipe` runs with `whitelist: true` + `forbidNonWhitelisted: true`, so undeclared fields are rejected — never rely on manual checks in the resolver for shape validation.
+- class-validator covers **all shape/format validation** — including regex (`@Matches`), nested (`@ValidateNested` + `@Type`), conditional (`@ValidateIf`), and complex/cross-field rules via a custom `@ValidatorConstraint`/decorator. **must not** put **business rules** (uniqueness, "referenced id exists", stock, permissions, anything needing the DB or other records) in a validator — those belong in the **service** (§4). Rule: *format → DTO validator; rules needing state/auth → service.*
 - Pagination args extend the shared pattern: `first` (with `@Min`/`@Max`), `after` (Relay cursor), `orderBy`, `direction`.
+- Reuse the shared custom scalars in `common/scalars/` (`Date`, `JSON`, `Upload`) — don't reinvent a date/JSON scalar per module. File uploads always go through the `Upload` scalar (and the §12 upload validation rules).
 
 ---
 
@@ -90,6 +92,7 @@ Do not invent a new folder layout or collapse these into fewer files "because th
 - Mark sensitive columns `{ select: false }` (e.g. `password_hash`) so they're excluded from default selects.
 - Use snake_case column names via `{ name: 'avatar_url' }`; index columns you filter/lookup on (`@Index()`).
 - Schema changes ship as timestamped migrations in `libs/database/migrations/`. Never rely on `synchronize: true` outside tests.
+- **must** wrap any operation that performs **more than one write** (multiple `save()`s, a write plus a related-record write, the sync upserts) in a single transaction via `libs/database/transaction.service` — never leave multi-step writes non-atomic, or a mid-operation failure leaves partial data.
 
 ---
 

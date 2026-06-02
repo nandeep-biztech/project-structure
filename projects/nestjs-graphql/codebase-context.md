@@ -62,19 +62,36 @@ TypeScript is the source of truth; there is no SDL to keep in sync, so the schem
 ```
 <app-name>/
 ├── src/
-│   ├── modules/        # One folder per business domain (users, posts, auth)
-│   ├── common/         # Shared cross-module utilities (decorators, guards, filters, scalars, plugins…)
-│   ├── config/         # Typed configuration (@nestjs/config registerAs)
-│   ├── health/         # REST health endpoint (Terminus: db + redis)
-│   ├── app.module.ts   # Root module — wires GraphQL, infra libs, feature modules, Apollo plugins
-│   └── main.ts         # Bootstrap — helmet, CORS, global ValidationPipe, listen
-├── libs/               # Internal shared infrastructure libraries (database, cache, queue, logger, auth, telemetry, storage/S3)
-├── integrations/       # Anti-corruption layer — adapters for external APIs: commerce platforms + general capabilities (bg-removal, vectorization, ai); see §13
-├── test/               # e2e specs, helpers, fixtures, factories
-├── scripts/            # seed, migrate, codegen
-├── docker/             # Dockerfile, compose.yml, nginx.conf
-├── schema.gql          # AUTO-GENERATED — do not edit
-└── tsconfig.paths.json # Path aliases: @libs/*, @common/*, @modules/*, @config/*
+│   ├── modules/             # One folder per business domain (users, posts, auth) — full anatomy in §4
+│   ├── common/             # Shared cross-module utilities
+│   │   ├── decorators/     # @CurrentUser, @Roles, @Public, @Complexity
+│   │   ├── guards/         # RolesGuard, throttler-gql guard
+│   │   ├── filters/        # gql-exception, http-exception
+│   │   ├── interceptors/   # logging, timeout
+│   │   ├── pipes/          # parse-uuid (DTO shape validation uses class-validator, §2)
+│   │   ├── scalars/        # Date, JSON, Upload          ← reused everywhere (guidelines §2)
+│   │   ├── plugins/        # Apollo: complexity, depth-limit, logging, tracing, sentry
+│   │   ├── directives/     # auth.directive
+│   │   ├── enums/          # sort-direction, action
+│   │   └── types/          # pagination.args, page-info, connection, edge
+│   ├── config/             # Typed config (registerAs): app, database, graphql, redis, queue, jwt
+│   ├── health/             # REST health endpoint (Terminus: db + redis)
+│   ├── app.module.ts       # Root module — wires GraphQL, infra libs, feature modules, Apollo plugins
+│   └── main.ts             # Bootstrap — helmet, CORS, global ValidationPipe, listen
+├── libs/                   # Internal shared infrastructure libraries
+│   ├── database/           # TypeORM: base.entity, transaction.service (unit-of-work), migrations/, seeds/
+│   ├── cache/              # Redis (ioredis)
+│   ├── queue/              # BullMQ + dead-letter queue
+│   ├── logger/             # Pino (structured JSON)
+│   ├── auth/               # Passport + JWT + CASL
+│   ├── telemetry/          # OpenTelemetry + Prometheus
+│   └── storage/            # AWS S3 (signed URLs)
+├── integrations/           # Anti-corruption layer for external APIs: commerce + general capabilities — see §13
+├── test/                   # e2e specs, helpers, fixtures, factories
+├── scripts/                # seed, migrate, codegen
+├── docker/                 # Dockerfile, compose.yml, nginx.conf
+├── schema.gql              # AUTO-GENERATED — do not edit
+└── tsconfig.paths.json     # Path aliases: @libs/*, @common/*, @modules/*, @config/*
 ```
 
 ---
