@@ -14,6 +14,7 @@
 A **back-office web app** (React 19) used by a client's **staff** to operate the product: browse the catalog synced from their commerce platform, trigger and monitor **syncs**, manage assets, configure their platform connection and locales, and administer users/roles. (Customers use the separate **designer tool**.)
 
 - **Audience:** internal staff/admins — RBAC-gated (`admin`, `editor`, …).
+- **Tenancy:** **one client per deployment** — each client runs its own admin instance and the tenant is fixed by the backend (derived from the JWT). This is **not** a multi-tenant console; there is no in-app tenant switching. (If that changes, add cache-reset-on-tenant-switch + per-tenant RBAC.)
 - **Backend:** the NestJS GraphQL API. The admin panel holds **no business logic that belongs server-side** — catalog truth, sync execution, and authorization all live in the backend; this app reads and triggers.
 - **Shape:** data-dense — tables, filters, forms, detail panes, dashboards, long-running job status.
 
@@ -107,7 +108,7 @@ Components are presentational; data access uses **typed `graphql()` documents** 
 | --- | --- |
 | **Server data** (catalog, sync runs, users, settings) | **Apollo Client cache** — source of truth, never duplicated |
 | Table/filter/pagination UI state | TanStack Table state + URL query params (shareable, back-button safe) |
-| App UI state (sidebar, theme, active tenant view) | light Zustand slices |
+| App UI state (sidebar, theme, layout) | light Zustand slices |
 | Form state | React Hook Form (local to the form) |
 | Ephemeral state | React `useState` |
 
@@ -119,7 +120,7 @@ Components are presentational; data access uses **typed `graphql()` documents** 
 React component → generated Apollo hook → Apollo Client → POST /graphql (NestJS)
    • Authorization: Bearer <JWT>     (lib/auth attaches; refresh on UNAUTHENTICATED)
    • Accept-Language: <locale>       (localized content from the backend)
-GraphQL errors → read extensions.code (UNAUTHENTICATED / FORBIDDEN / VALIDATION_FAILED / …)
+GraphQL errors → read extensions.code (UNAUTHENTICATED / FORBIDDEN / NOT_FOUND / VALIDATION_FAILED / CONFLICT / RATE_LIMITED / INTERNAL)
 Long jobs (sync) → subscribe (graphql-ws) or poll jobStatus
 ```
 
@@ -188,8 +189,8 @@ Vite `VITE_`-prefixed (client-exposed, **no secrets**): `VITE_GRAPHQL_HTTP_URL`,
 | `src/app/` | Shell: providers, role-guarded router, error boundary | React, React Router |
 | `src/pages/` | Thin route composition | React Router |
 | `src/features/` | Catalog, sync, users, settings, … | React, TanStack Table, RHF |
-| `src/graphql/` | Apollo client + generated hooks | Apollo, graphql-codegen |
+| `src/gql/` | Generated GraphQL types & `graphql()` documents (client-preset) | graphql-codegen |
 | `src/store/` | Light UI state | Zustand |
-| `src/lib/` | auth, rbac, i18n, error mapping, config | i18next, Apollo links |
+| `src/lib/` | apollo (client/links/cache), auth, rbac, i18n, error mapping, config | Apollo Client, i18next |
 | `src/shared/` | UI kit (Table/Form/Modal/DataState), hooks | Tailwind, Radix |
 | `src/__tests__/` | Shared test infra + e2e | Vitest, MSW, Playwright |

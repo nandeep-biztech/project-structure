@@ -24,14 +24,14 @@ Adding `features/<feature>/`, mirror an existing one:
 
 - `components/` — `<Feature>Table.tsx`, `<Feature>Form.tsx`, detail panes (+ co-located `.test.tsx`).
 - `hooks/use<Feature>.ts` (+ `.test.ts`) — Apollo wiring + derived state.
-- `graphql/*.graphql` operations; `utils/` (pure, + tests); `types.ts`.
+- `graphql/operations.ts` — typed `graphql("query …")` documents (client-preset; **not** `.graphql` SDL files); `utils/` (pure, + tests); `types.ts`.
 
-**Naming (required):** PascalCase components (`ProductTable.tsx`), kebab/camel hooks per repo convention, named GraphQL operations (`query Products`, `mutation TriggerSync`), tests `*.test.tsx` beside source. Routes are lazy + role-guarded.
+**Naming (required):** PascalCase components (`ProductTable.tsx`), **camelCase `use<Feature>.ts` hooks**, named GraphQL operations (`query Products`, `mutation TriggerSync`), tests `*.test.tsx` beside source. Routes are lazy + role-guarded.
 
 ### Module boundaries & dependencies (keep features decoupled)
 
 - **must not** import from another feature's internals (`features/a/`** → `features/b/**`). Share **down** to `shared/`/`lib/` or compose **up** at the `pages`/`app` layer — never feature-to-feature. (No "CORE" features here — all features are peers.)
-- **Allowed import direction:** `app` → `pages` → `features` → (`shared`, `lib`, `store`, `graphql`). Never upward — a feature importing a page or `app/` is a bug.
+- **Allowed import direction:** `app` → `pages` → `features` → (`shared`, `lib`, `store`, `gql`). Never upward — a feature importing a page or `app/` is a bug.
 - `**lib/` vs `shared/` (don't mix):** `lib/` = app-level integrations/singletons (Apollo client, auth, rbac, i18n, config, telemetry); `shared/` = reusable **presentational** UI kit (`Table`, `Form`, `Modal`, `DataState`) + pure hooks/utils. No app singletons in `shared/`, no UI widgets in `lib/`.
 - **should** enforce the above mechanically with `eslint-plugin-boundaries` (or `import/no-restricted-paths`) so a violation fails lint, not review.
 
@@ -58,7 +58,7 @@ Adding `features/<feature>/`, mirror an existing one:
 ## 4. GraphQL & data access (Apollo Client + codegen **client-preset**)
 
 - **must** generate types with **`@graphql-codegen/client-preset`** (typed `graphql()` documents + fragment masking) into `src/gql/` — **not** the legacy `typescript-react-apollo` per-operation hooks. `src/gql/` is generated; never hand-edit it.
-- **must** run codegen against the **committed `schema.gql`** (synced from the backend) or a dev/staging endpoint — **never prod** (introspection is off there). Codegen runs in **CI and fails on schema drift**; map custom scalars (`DateTime`, `JSON`, `Upload`) and use `enumsAsTypes`.
+- **must** run codegen against the **committed `schema.gql`** (synced from the backend) or a dev/staging endpoint — **never prod** (introspection is off there). Codegen runs in **CI and fails on schema drift**; map custom scalars (`DateTime`, `JSON`) and use `enumsAsTypes`. (No `Upload` mapping — the admin panel doesn't upload files; assets are read via signed URLs. Add `Upload` only if/when an admin upload flow exists.)
 - **must** write operations as typed `graphql("query …")` documents in the feature's `graphql/operations.ts`, consumed via Apollo `useQuery(DOC)` / `useMutation(DOC)` — never hand-write an untyped `gql`.
 - **must** **colocate fragments** on the component that needs them (`graphql("fragment …")`) and read via `useFragment` (fragment masking) — no over-fetching, no cross-feature field coupling.
 - **must** use **Relay connection** pagination for all lists and configure `relayStylePagination` in the cache `typePolicies` (`lib/apollo/cache.ts`); never fetch unbounded lists.
@@ -76,6 +76,7 @@ Adding `features/<feature>/`, mirror an existing one:
 - **must not** store the token in `localStorage`/`sessionStorage` plaintext, log it, or put it in a `VITE_` var/URL.
 - **must** drive route guards and action visibility from the **current user's roles**, but **must not** treat UI gating as enforcement — every action is re-authorized server-side (a hidden button is not security).
 - **must** route `graphql-ws` (sync progress) with the JWT in `connectionParams`; tear down on logout.
+- **must** handle **token expiry on long-lived subscriptions**: when the JWT expires mid-subscription (e.g. a long sync run), refresh it and **reconnect `graphql-ws` with the new `connectionParams`** — never let a sync-progress socket die silently or reconnect with a stale token.
 
 ---
 
@@ -92,6 +93,8 @@ Adding `features/<feature>/`, mirror an existing one:
 - **must** treat platform **credentials** as **write-only** in the UI — submit to the backend, never request/display them back; show only a "configured" indicator.
 - **must not** place any secret in the client or a `VITE_` var (all `VITE_` ships to the browser).
 - **must** edit the store-view↔locale map and platform base URL through the backend's per-tenant config endpoints; the backend validates them (SSRF/allowlist) — the UI just collects input.
+- **must** validate `import.meta.env` **once at startup** in `lib/config` with a Zod schema and **fail fast** if a required var (e.g. `VITE_GRAPHQL_HTTP_URL`) is missing/malformed; the rest of the app reads typed config from `lib/config`, never `import.meta.env` directly.
+- **should** read feature flags only through that typed `lib/config` (never raw `import.meta.env` in components), so gating is centralized and testable.
 
 ---
 
@@ -147,7 +150,7 @@ This is a **sensitive back-office** (staff, RBAC, platform-credential management
 
 ### Session & telemetry
 - **should** auto-logout on inactivity and on token expiry (sensitive back-office); handle `UNAUTHENTICATED` by clearing session and routing to login.
-- **must not** log tokens or PII; scrub Sentry breadcrumbs/context of sensitive fields (§ telemetry).
+- **must not** log tokens or PII; scrub Sentry breadcrumbs/context of sensitive fields before sending.
 
 ### Authorization (reminder)
 - **must** rely on the **server** to enforce every action; UI role-gating (§5) is UX only — a hidden/disabled control is not a security control.
@@ -158,6 +161,7 @@ This is a **sensitive back-office** (staff, RBAC, platform-credential management
 
 - **must** co-locate unit tests beside source; render via `__tests__/test-utils.tsx`; mock the API with **MSW**.
 - **must** test: loading/error/empty states, table sort/filter/pagination, form validation + submit, RBAC gating (allowed **and** denied), and error-code → UX mapping.
+- **must** verify **accessibility** (§2) in tests — `jest-axe`/`axe-core` asserting no critical violations on key screens, plus role/label-based queries in component tests — so the accessibility "must" is actually enforced, not aspirational.
 - **must** cover key flows with **Playwright** e2e: login + RBAC, catalog browse/filter, sync trigger→complete, settings save.
 - **"Done" is objective:** `tsc --noEmit` clean, ESLint/Prettier clean, unit + e2e green, coverage ≥ project threshold (default **80%**), CI green — local green alone is not done.
 
