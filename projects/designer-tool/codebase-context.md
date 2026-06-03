@@ -1,9 +1,9 @@
 # Codebase Context — Designer Tool (React)
 
 > **Purpose of this file (read first).**
-> This is the **map** of the designer-tool codebase — *what it is, where things live, how data flows, and how it talks to the backend.* It exists so an automated agent can orient itself **before** changing anything.
+> This is the **map** of the designer-tool codebase — _what it is, where things live, how data flows, and how it talks to the backend._ It exists so an automated agent can orient itself **before** changing anything.
 >
-> It is **descriptive**, not prescriptive. For *how you must write code here* (conventions, do's/don'ts, definition of done), see [`engineering-guidelines.md`](./engineering-guidelines.md).
+> It is **descriptive**, not prescriptive. For _how you must write code here_ (conventions, do's/don'ts, definition of done), see [`engineering-guidelines.md`](./engineering-guidelines.md).
 >
 > The API it consumes is the NestJS GraphQL backend — see `../nestjs-graphql/codebase-context.md`. This app is a **pure consumer**: it never talks to a commerce platform or AI vendor directly; everything goes through the backend's GraphQL API.
 
@@ -21,21 +21,21 @@ A browser-based **design canvas SPA** (React 19 + Fabric.js) that lets a client'
 
 ## 2. Tech stack
 
-| Layer | Technology |
-| --- | --- |
-| Framework | React 19 + TypeScript 5.x (strict) |
-| Build tool | Vite 6 |
-| Canvas engine | Fabric.js 6 |
-| State | Zustand + Immer (UI/canvas state); Apollo Client cache (server state) |
-| GraphQL | Apollo Client + GraphQL Code Generator **client-preset** (typed `graphql()` documents + fragment masking) |
-| Styling | Tailwind CSS 4 |
-| Routing | React Router v7 (lazy-loaded routes) |
-| i18n | i18next (UI strings) + `Accept-Language` header to the backend (content) |
-| Forms/validation | React Hook Form + Zod |
-| Unit testing | Vitest + Testing Library + MSW |
-| E2E | Playwright |
-| Lint/format | ESLint (flat config) + Prettier |
-| Container | Docker + nginx (static SPA) |
+| Layer            | Technology                                                                                                |
+| ---------------- | --------------------------------------------------------------------------------------------------------- |
+| Framework        | React 19 + TypeScript 5.x (strict)                                                                        |
+| Build tool       | Vite 6                                                                                                    |
+| Canvas engine    | Fabric.js 6                                                                                               |
+| State            | Zustand + Immer (UI/canvas state); Apollo Client cache (server state)                                     |
+| GraphQL          | Apollo Client + GraphQL Code Generator **client-preset** (typed `graphql()` documents + fragment masking) |
+| Styling          | Tailwind CSS 4                                                                                            |
+| Routing          | React Router v7 (lazy-loaded routes)                                                                      |
+| i18n             | i18next (UI strings) + `Accept-Language` header to the backend (content)                                  |
+| Forms/validation | React Hook Form + Zod                                                                                     |
+| Unit testing     | Vitest + Testing Library + MSW                                                                            |
+| E2E              | Playwright                                                                                                |
+| Lint/format      | ESLint (flat config) + Prettier                                                                           |
+| Container        | Docker + nginx (static SPA)                                                                               |
 
 ---
 
@@ -75,7 +75,7 @@ A browser-based **design canvas SPA** (React 19 + Fabric.js) that lets a client'
 │   ├── store/                       # Zustand root + slices (ui, canvas, design)
 │   └── __tests__/                   # setup, test-utils, MSW mocks/fixtures, e2e specs
 ├── .github/
-│   └── workflows/                   # ci, deploy, lighthouse
+│   └── workflows/                   # ci, deploy
 ├── schema.gql                       # committed schema artifact from backend — codegen source (never prod URL)
 ├── codegen.ts                       # graphql-codegen client-preset config (schema.gql → src/gql/)
 ├── vite.config.ts
@@ -109,13 +109,13 @@ Components are **presentational**; logic lives in hooks; data access uses **type
 
 ## 5. State architecture
 
-| Concern | Where it lives |
-| --- | --- |
-| Canvas object state | Fabric.js internal ↔ synced to Zustand via `useCanvasSync` |
-| App/UI state (active tool, panels, selected side) | Zustand slices (`ui`, `canvas`, `design`) + Immer |
-| **Server/async state** (templates, products, designs, cart, AI jobs) | **Apollo Client cache** — never duplicated into Zustand |
-| Ephemeral component state | React `useState` |
-| Crash recovery / autosave draft | IndexedDB persistence middleware on Zustand |
+| Concern                                                              | Where it lives                                             |
+| -------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Canvas object state                                                  | Fabric.js internal ↔ synced to Zustand via `useCanvasSync` |
+| App/UI state (active tool, panels, selected side)                    | Zustand slices (`ui`, `canvas`, `design`) + Immer          |
+| **Server/async state** (templates, products, designs, cart, AI jobs) | **Apollo Client cache** — never duplicated into Zustand    |
+| Ephemeral component state                                            | React `useState`                                           |
+| Crash recovery / autosave draft                                      | IndexedDB persistence middleware on Zustand                |
 
 Key rule reflected here: **server data is owned by Apollo; client/canvas data is owned by Zustand.** They don't mirror each other.
 
@@ -125,15 +125,16 @@ Key rule reflected here: **server data is owned by Apollo; client/canvas data is
 
 ```
 React component → generated Apollo hook → Apollo Client → POST /graphql (NestJS)
-   • Authorization: Bearer <JWT>        (lib/auth attaches it; refresh on 401)
+   • Authorization: Bearer <JWT>        (lib/auth attaches it; refresh on UNAUTHENTICATED)
    • Accept-Language: <locale>          (so the backend returns localized content)
-GraphQL errors → read extensions.code   (UNAUTHENTICATED, FORBIDDEN, VALIDATION_FAILED, …)
+GraphQL errors → read extensions.code   (UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, VALIDATION_FAILED, CONFLICT, RATE_LIMITED, INTERNAL)
 Subscriptions  → graphql-ws over WS      (JWT in connectionParams)
 ```
 
 - **Auth:** login is a GraphQL mutation; the access token is held in memory (with refresh), attached as `Authorization: Bearer`. No ambient cookies (matches the backend's CSRF-safe model). Tokens are never logged or written to `localStorage` in plaintext.
 - **Catalog/templates:** products, templates, categories are **read from the backend** (which synced them from the platform). The app never calls Magento/Shopify.
 - **AI / image ops (bg-removal, vectorization, generation):** trigger a backend **mutation** → backend runs it as an async job → the app **polls `jobStatus` or subscribes** → on `READY` it gets a **signed S3 URL** for the asset and places it on the canvas. The app never calls remove.bg/Stability.
+- **Image upload (signed-URL):** the client requests a **presigned upload URL** from the backend (mutation, after client-side type/size validation), **`PUT`s the file bytes directly to S3** via that URL, then references the returned object key in a follow-up mutation. Uploads therefore **bypass GraphQL** (no `Upload` scalar) and never touch S3 credentials.
 - **Add to cart:** `addToCart` mutation → backend proxies to the platform (which owns cart & checkout). The app stores no cart truth.
 - **Codegen:** `codegen.ts` uses the **`@graphql-codegen/client-preset`** to generate `src/gql/` (typed `graphql()` + fragment types) from the backend's committed **`schema.gql`** (or a dev/staging endpoint — never prod). Runs in CI and fails on schema drift. This is where GraphQL codegen lives (the backend has none).
 
@@ -161,13 +162,13 @@ User interaction
 
 The app is multilingual on **two layers**, both driven by **one resolved locale**:
 
-| Layer | What | Owner |
-| --- | --- | --- |
-| **UI strings we author** | labels, buttons, tooltips, toasts, empty states, client-side validation hints | **i18next** translation bundles in this repo |
-| **Server-returned content** | product/category names, backend error messages | the backend, requested via **`Accept-Language`** (§6) |
+| Layer                       | What                                                                          | Owner                                                 |
+| --------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------- |
+| **UI strings we author**    | labels, buttons, tooltips, toasts, empty states, client-side validation hints | **i18next** translation bundles in this repo          |
+| **Server-returned content** | product/category names, backend error messages                                | the backend, requested via **`Accept-Language`** (§6) |
 
 - **Where UI translations live:** `src/lib/i18n/locales/<lang>/<namespace>.json`, **namespaced per feature** (`common`, `canvas`, `cart`, `ai`, …). Components read them via `useTranslation('<namespace>')` → `t('key')` — never inline literals.
-- **Single locale source:** `src/lib/i18n` owns the active locale. The **same value** configures i18next *and* is sent as the `Accept-Language` header, so the UI chrome and the server content always match. A language switcher updates it once; both layers follow. The locale is persisted (e.g. `localStorage`) and/or detected from the browser, **allowlisted** against `VITE_SUPPORTED_LOCALES`, falling back to `VITE_DEFAULT_LOCALE`.
+- **Single locale source:** `src/lib/i18n` owns the active locale. The **same value** configures i18next _and_ is sent as the `Accept-Language` header, so the UI chrome and the server content always match. A language switcher updates it once; both layers follow. The locale is persisted (e.g. `localStorage`) and/or detected from the browser, **allowlisted** against `VITE_SUPPORTED_LOCALES`, falling back to `VITE_DEFAULT_LOCALE`.
 - **Loading:** locale bundles are lazy-loaded per language (optionally per namespace) so the initial bundle stays small.
 
 > So "multilanguage" = **backend localizes content** (Accept-Language) **+ this app localizes its own UI** (i18next bundles). The enforceable rules are in [`engineering-guidelines.md`](./engineering-guidelines.md) §8.
@@ -191,13 +192,13 @@ Vite env vars (`VITE_` prefix, exposed to the client — **never put secrets her
 
 ## 12. Layer responsibility summary
 
-| Layer | Responsibility | Key tech |
-| --- | --- | --- |
-| `src/app/` | Shell: providers, router, error boundary | React, React Router |
-| `src/pages/` | Route-level composition | React Router |
-| `src/features/` | Self-contained tools (canvas, ai, cart, …) | React, Fabric.js, Zustand |
-| `src/graphql/` | Apollo client + generated typed hooks | Apollo, graphql-codegen |
-| `src/store/` | Client/canvas state | Zustand + Immer |
-| `src/lib/` | auth, i18n, error mapping, config, telemetry | i18next, Apollo links |
-| `src/shared/` | UI kit, shared hooks/utils | Tailwind |
-| `src/__tests__/` | Shared test infra + e2e | Vitest, MSW, Playwright |
+| Layer            | Responsibility                                                            | Key tech                  |
+| ---------------- | ------------------------------------------------------------------------- | ------------------------- |
+| `src/app/`       | Shell: providers, router, error boundary                                  | React, React Router       |
+| `src/pages/`     | Route-level composition                                                   | React Router              |
+| `src/features/`  | Self-contained tools (canvas, ai, cart, …)                                | React, Fabric.js, Zustand |
+| `src/gql/`       | Generated GraphQL types & `graphql()` documents (client-preset)           | graphql-codegen           |
+| `src/store/`     | Client/canvas state                                                       | Zustand + Immer           |
+| `src/lib/`       | apollo (client/links/cache), auth, i18n, error mapping, config, telemetry | Apollo Client, i18next    |
+| `src/shared/`    | UI kit, shared hooks/utils                                                | Tailwind                  |
+| `src/__tests__/` | Shared test infra + e2e                                                   | Vitest, MSW, Playwright   |

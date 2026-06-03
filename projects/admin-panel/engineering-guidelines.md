@@ -1,9 +1,9 @@
 # Engineering Guidelines — Admin Panel (React)
 
 > **Purpose of this file (read after orienting).**
-> This is the **rulebook** — *how you must write, structure, and verify code in the admin panel.* Every entry is a **must / must not / should**.
+> This is the **rulebook** — _how you must write, structure, and verify code in the admin panel._ Every entry is a **must / must not / should**.
 >
-> It is **prescriptive**, not descriptive. For *what the system is and where things live*, see `[codebase-context.md](./codebase-context.md)`. The backend contract lives in `../nestjs-graphql/engineering-guidelines.md`.
+> It is **prescriptive**, not descriptive. For _what the system is and where things live_, see `[codebase-context.md](./codebase-context.md)`. The backend contract lives in `../nestjs-graphql/engineering-guidelines.md`.
 
 ---
 
@@ -11,7 +11,7 @@
 
 1. **Pure backend consumer.** Never call a commerce platform, AI vendor, or S3 directly — only the backend GraphQL API. Catalog truth, sync execution, and authorization are server-side.
 2. **Server state lives in Apollo.** Don't duplicate it into Zustand or hand-cache it; light Zustand is for UI chrome only.
-3. **All GraphQL goes through generated typed hooks** — never hand-write untyped queries.
+3. **All GraphQL goes through generated typed documents** (client-preset `graphql()`) via `useQuery(DOC)`/`useMutation(DOC)` — never hand-write untyped queries or use legacy per-operation hooks.
 4. **RBAC in the UI is for UX, not security.** Hide/disable what a role can't do, but the **server enforces** authorization.
 5. **Components presentational; logic in hooks.** Pages stay thin and compose features.
 6. **Done = typecheck + lint + tests green and coverage holds** (§10).
@@ -30,9 +30,9 @@ Adding `features/<feature>/`, mirror an existing one:
 
 ### Module boundaries & dependencies (keep features decoupled)
 
-- **must not** import from another feature's internals (`features/a/`** → `features/b/**`). Share **down** to `shared/`/`lib/` or compose **up** at the `pages`/`app` layer — never feature-to-feature. (No "CORE" features here — all features are peers.)
+- **must not** import from another feature's internals (`features/a/`** → `features/b/**`). Share **down** to `shared/`/`lib/`or compose **up** at the`pages`/`app` layer — never feature-to-feature. (No "CORE" features here — all features are peers.)
 - **Allowed import direction:** `app` → `pages` → `features` → (`shared`, `lib`, `store`, `gql`). Never upward — a feature importing a page or `app/` is a bug.
-- `**lib/` vs `shared/` (don't mix):** `lib/` = app-level integrations/singletons (Apollo client, auth, rbac, i18n, config, telemetry); `shared/` = reusable **presentational** UI kit (`Table`, `Form`, `Modal`, `DataState`) + pure hooks/utils. No app singletons in `shared/`, no UI widgets in `lib/`.
+- `**lib/` vs `shared/` (don't mix):** `lib/` = app-level integrations/singletons (Apollo client, auth, rbac, i18n, config, telemetry); `shared/` = reusable **presentational\*\* UI kit (`Table`, `Form`, `Modal`, `DataState`) + pure hooks/utils. No app singletons in `shared/`, no UI widgets in `lib/`.
 - **should** enforce the above mechanically with `eslint-plugin-boundaries` (or `import/no-restricted-paths`) so a violation fails lint, not review.
 
 ---
@@ -59,6 +59,7 @@ Adding `features/<feature>/`, mirror an existing one:
 
 - **must** generate types with **`@graphql-codegen/client-preset`** (typed `graphql()` documents + fragment masking) into `src/gql/` — **not** the legacy `typescript-react-apollo` per-operation hooks. `src/gql/` is generated; never hand-edit it.
 - **must** run codegen against the **committed `schema.gql`** (synced from the backend) or a dev/staging endpoint — **never prod** (introspection is off there). Codegen runs in **CI and fails on schema drift**; map custom scalars (`DateTime`, `JSON`) and use `enumsAsTypes`. (No `Upload` mapping — the admin panel doesn't upload files; assets are read via signed URLs. Add `Upload` only if/when an admin upload flow exists.)
+- **must** point codegen's `documents` at **source files** — `['src/**/*.{ts,tsx}', '!src/gql/**']` — never at `*.graphql` files (client-preset scans `graphql()` calls in TS/TSX).
 - **must** write operations as typed `graphql("query …")` documents in the feature's `graphql/operations.ts`, consumed via Apollo `useQuery(DOC)` / `useMutation(DOC)` — never hand-write an untyped `gql`.
 - **must** **colocate fragments** on the component that needs them (`graphql("fragment …")`) and read via `useFragment` (fragment masking) — no over-fetching, no cross-feature field coupling.
 - **must** use **Relay connection** pagination for all lists and configure `relayStylePagination` in the cache `typePolicies` (`lib/apollo/cache.ts`); never fetch unbounded lists.
@@ -98,11 +99,11 @@ Adding `features/<feature>/`, mirror an existing one:
 
 ---
 
-## 8. i18n (two layers — UI strings *and* server content)
+## 8. i18n (two layers — UI strings _and_ server content)
 
 **Layer 1 — the strings we author (i18next):**
 
-- **must not** hardcode *any* user-facing string — every label, button, table header, tooltip, toast, empty state, and client-side validation hint goes through `t('key')`. A literal in JSX is a bug.
+- **must not** hardcode _any_ user-facing string — every label, button, table header, tooltip, toast, empty state, and client-side validation hint goes through `t('key')`. A literal in JSX is a bug.
 - **must** keep translations in `src/lib/i18n/locales/<lang>/<namespace>.json`, **namespaced per feature** (`common`, `catalog`, `sync`, `users`, `settings`, …); read via `useTranslation('<namespace>')`.
 - **must** add every new key to **all** supported locales (at minimum the default); a missing key falls back to the default locale — **never** render a raw key.
 - **must** use **interpolation / ICU plurals** (`t('rowsSelected', { count })`) — **never** concatenate translated fragments.
@@ -124,15 +125,17 @@ Adding `features/<feature>/`, mirror an existing one:
 
 ## 10. Security (client-side)
 
-This is a **sensitive back-office** (staff, RBAC, platform-credential management), so client-side security is first-class. The backend remains the enforcement boundary; these rules close the *frontend* surface.
+This is a **sensitive back-office** (staff, RBAC, platform-credential management), so client-side security is first-class. The backend remains the enforcement boundary; these rules close the _frontend_ surface.
 
 ### XSS & DOM safety
+
 - **must not** use `dangerouslySetInnerHTML`. If rendering HTML is ever unavoidable, sanitize with a vetted library (DOMPurify) and document why — never inject server/user strings into the DOM raw.
 - **must** validate any URL before using it in `href`/`src` (allow `https:` / relative only) — reject `javascript:`/`data:` schemes; never build links from unsanitized input.
 - **must not** use `eval`, `new Function`, or render untrusted strings as markup/templates.
 - **should** add `rel="noopener noreferrer"` to every `target="_blank"` link, and never perform a redirect to a URL taken from query/user input without allowlisting (open-redirect).
 
 ### Token, secret & sensitive-data handling
+
 - **must** keep the access token **in memory only** (§5) — never `localStorage`/`sessionStorage`, never logged, never in a `VITE_` var or URL.
 - **must not** put any secret in the client; all `VITE_` values ship to the browser (§7).
 - **must not** persist server data, tokens, or credentials to `localStorage`/`IndexedDB` — admin data is sensitive; keep it in the Apollo cache (memory).
@@ -140,19 +143,23 @@ This is a **sensitive back-office** (staff, RBAC, platform-credential management
 - **must** treat platform credentials as **write-only** (§7) — never request or display them back.
 
 ### Transport & headers (`nginx.conf`)
+
 - **must** ship a strict **Content-Security-Policy** (`default-src 'self'`; no `unsafe-inline`/`unsafe-eval` for scripts; explicit allowlist for the GraphQL/WS origins and any asset/CDN origin).
 - **must** set `frame-ancestors 'none'` (anti-clickjacking), `X-Content-Type-Options: nosniff`, a sane `Referrer-Policy`, and **HSTS**; serve only over **HTTPS** (no mixed content).
 - **must** load assets only via backend **signed URLs / allowed origins**.
 
 ### Supply chain
+
 - **must** `npm ci` against a committed lockfile and run **`npm audit`** in CI (fail on high/critical); keep deps current (Dependabot/Renovate).
 - **must** minimize third-party scripts; any external script needs **SRI** + a CSP allowlist entry — no arbitrary analytics/tag-manager injection.
 
 ### Session & telemetry
+
 - **should** auto-logout on inactivity and on token expiry (sensitive back-office); handle `UNAUTHENTICATED` by clearing session and routing to login.
 - **must not** log tokens or PII; scrub Sentry breadcrumbs/context of sensitive fields before sending.
 
 ### Authorization (reminder)
+
 - **must** rely on the **server** to enforce every action; UI role-gating (§5) is UX only — a hidden/disabled control is not a security control.
 
 ---
@@ -184,4 +191,3 @@ This is a **sensitive back-office** (staff, RBAC, platform-credential management
 - ❌ Parsing error message text instead of `extensions.code`.
 - ❌ Hardcoded user-facing strings instead of i18next keys.
 - ❌ Shipping without co-located tests, or calling it done on red CI / below coverage.
-

@@ -1,9 +1,9 @@
 # Codebase Context — Admin Panel (React)
 
 > **Purpose of this file (read first).**
-> This is the **map** of the admin-panel codebase — *what it is, where things live, how data flows, and how it talks to the backend.* It exists so an automated agent can orient itself **before** changing anything.
+> This is the **map** of the admin-panel codebase — _what it is, where things live, how data flows, and how it talks to the backend._ It exists so an automated agent can orient itself **before** changing anything.
 >
-> It is **descriptive**, not prescriptive. For *how you must write code here*, see [`engineering-guidelines.md`](./engineering-guidelines.md).
+> It is **descriptive**, not prescriptive. For _how you must write code here_, see [`engineering-guidelines.md`](./engineering-guidelines.md).
 >
 > The API it consumes is the NestJS GraphQL backend — see `../nestjs-graphql/codebase-context.md`. This app is a **pure consumer**: it never talks to a commerce platform or AI vendor directly.
 
@@ -22,21 +22,21 @@ A **back-office web app** (React 19) used by a client's **staff** to operate the
 
 ## 2. Tech stack
 
-| Layer | Technology |
-| --- | --- |
-| Framework | React 19 + TypeScript 5.x (strict) |
-| Build tool | Vite 6 |
-| Data layer | Apollo Client + GraphQL Code Generator **client-preset** (typed `graphql()` documents + fragment masking) |
-| Tables | TanStack Table (headless) — sortable, filterable, paginated |
-| Forms/validation | React Hook Form + Zod |
-| State | Apollo cache (server state) + light Zustand (UI: sidebar, theme, filters) |
-| Styling | Tailwind CSS 4 + a headless UI kit (e.g. Radix) |
-| Routing | React Router v7 (lazy, role-guarded) |
-| i18n | i18next (UI) + `Accept-Language` header to the backend (content) |
-| Unit testing | Vitest + Testing Library + MSW |
-| E2E | Playwright |
-| Lint/format | ESLint (flat config) + Prettier |
-| Container | Docker + nginx |
+| Layer            | Technology                                                                                                |
+| ---------------- | --------------------------------------------------------------------------------------------------------- |
+| Framework        | React 19 + TypeScript 5.x (strict)                                                                        |
+| Build tool       | Vite 6                                                                                                    |
+| Data layer       | Apollo Client + GraphQL Code Generator **client-preset** (typed `graphql()` documents + fragment masking) |
+| Tables           | TanStack Table (headless) — sortable, filterable, paginated                                               |
+| Forms/validation | React Hook Form + Zod                                                                                     |
+| State            | Apollo cache (server state) + light Zustand (UI: sidebar, theme, filters)                                 |
+| Styling          | Tailwind CSS 4 + a headless UI kit (e.g. Radix)                                                           |
+| Routing          | React Router v7 (lazy, role-guarded)                                                                      |
+| i18n             | i18next (UI) + `Accept-Language` header to the backend (content)                                          |
+| Unit testing     | Vitest + Testing Library + MSW                                                                            |
+| E2E              | Playwright                                                                                                |
+| Lint/format      | ESLint (flat config) + Prettier                                                                           |
+| Container        | Docker + nginx                                                                                            |
 
 ---
 
@@ -104,13 +104,13 @@ Components are presentational; data access uses **typed `graphql()` documents** 
 
 ## 5. State architecture
 
-| Concern | Where it lives |
-| --- | --- |
-| **Server data** (catalog, sync runs, users, settings) | **Apollo Client cache** — source of truth, never duplicated |
-| Table/filter/pagination UI state | TanStack Table state + URL query params (shareable, back-button safe) |
-| App UI state (sidebar, theme, layout) | light Zustand slices |
-| Form state | React Hook Form (local to the form) |
-| Ephemeral state | React `useState` |
+| Concern                                               | Where it lives                                                        |
+| ----------------------------------------------------- | --------------------------------------------------------------------- |
+| **Server data** (catalog, sync runs, users, settings) | **Apollo Client cache** — source of truth, never duplicated           |
+| Table/filter/pagination UI state                      | TanStack Table state + URL query params (shareable, back-button safe) |
+| App UI state (sidebar, theme, layout)                 | light Zustand slices                                                  |
+| Form state                                            | React Hook Form (local to the form)                                   |
+| Ephemeral state                                       | React `useState`                                                      |
 
 ---
 
@@ -155,13 +155,13 @@ SyncPage → triggerSync mutation → syncRunId
 
 The app is multilingual on **two layers**, both driven by **one resolved locale**:
 
-| Layer | What | Owner |
-| --- | --- | --- |
-| **UI strings we author** | labels, buttons, table headers, tooltips, toasts, empty states, client-side validation hints | **i18next** translation bundles in this repo |
-| **Server-returned content** | product/category names, backend error messages | the backend, requested via **`Accept-Language`** (§6) |
+| Layer                       | What                                                                                         | Owner                                                 |
+| --------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| **UI strings we author**    | labels, buttons, table headers, tooltips, toasts, empty states, client-side validation hints | **i18next** translation bundles in this repo          |
+| **Server-returned content** | product/category names, backend error messages                                               | the backend, requested via **`Accept-Language`** (§6) |
 
 - **Where UI translations live:** `src/lib/i18n/locales/<lang>/<namespace>.json`, **namespaced per feature** (`common`, `catalog`, `sync`, `users`, `settings`, …). Components read them via `useTranslation('<namespace>')` → `t('key')` — never inline literals.
-- **Single locale source:** `src/lib/i18n` owns the active locale. The **same value** configures i18next *and* is sent as the `Accept-Language` header, so UI chrome and server content always match. The language switcher updates it once; both layers follow. Persisted/detected, **allowlisted** against `VITE_SUPPORTED_LOCALES`, falling back to `VITE_DEFAULT_LOCALE`.
+- **Single locale source:** `src/lib/i18n` owns the active locale. The **same value** configures i18next _and_ is sent as the `Accept-Language` header, so UI chrome and server content always match. The language switcher updates it once; both layers follow. Persisted/detected, **allowlisted** against `VITE_SUPPORTED_LOCALES`, falling back to `VITE_DEFAULT_LOCALE`.
 - **Loading:** locale bundles are lazy-loaded per language so the initial bundle stays small.
 
 > So "multilanguage" = **backend localizes content** (Accept-Language) **+ this app localizes its own UI** (i18next bundles). The enforceable rules are in [`engineering-guidelines.md`](./engineering-guidelines.md) §8.
@@ -184,13 +184,13 @@ Vite `VITE_`-prefixed (client-exposed, **no secrets**): `VITE_GRAPHQL_HTTP_URL`,
 
 ## 12. Layer responsibility summary
 
-| Layer | Responsibility | Key tech |
-| --- | --- | --- |
-| `src/app/` | Shell: providers, role-guarded router, error boundary | React, React Router |
-| `src/pages/` | Thin route composition | React Router |
-| `src/features/` | Catalog, sync, users, settings, … | React, TanStack Table, RHF |
-| `src/gql/` | Generated GraphQL types & `graphql()` documents (client-preset) | graphql-codegen |
-| `src/store/` | Light UI state | Zustand |
-| `src/lib/` | apollo (client/links/cache), auth, rbac, i18n, error mapping, config | Apollo Client, i18next |
-| `src/shared/` | UI kit (Table/Form/Modal/DataState), hooks | Tailwind, Radix |
-| `src/__tests__/` | Shared test infra + e2e | Vitest, MSW, Playwright |
+| Layer            | Responsibility                                                       | Key tech                   |
+| ---------------- | -------------------------------------------------------------------- | -------------------------- |
+| `src/app/`       | Shell: providers, role-guarded router, error boundary                | React, React Router        |
+| `src/pages/`     | Thin route composition                                               | React Router               |
+| `src/features/`  | Catalog, sync, users, settings, …                                    | React, TanStack Table, RHF |
+| `src/gql/`       | Generated GraphQL types & `graphql()` documents (client-preset)      | graphql-codegen            |
+| `src/store/`     | Light UI state                                                       | Zustand                    |
+| `src/lib/`       | apollo (client/links/cache), auth, rbac, i18n, error mapping, config | Apollo Client, i18next     |
+| `src/shared/`    | UI kit (Table/Form/Modal/DataState), hooks                           | Tailwind, Radix            |
+| `src/__tests__/` | Shared test infra + e2e                                              | Vitest, MSW, Playwright    |

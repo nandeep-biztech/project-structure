@@ -1,9 +1,9 @@
 # Engineering Guidelines — Designer Tool (React)
 
 > **Purpose of this file (read after orienting).**
-> This is the **rulebook** — *how you must write, structure, and verify code in the designer tool.* Every entry is a **must / must not / should**.
+> This is the **rulebook** — _how you must write, structure, and verify code in the designer tool._ Every entry is a **must / must not / should**.
 >
-> It is **prescriptive**, not descriptive. For *what the system is and where things live*, see `[codebase-context.md](./codebase-context.md)`. The backend contract lives in `../nestjs-graphql/engineering-guidelines.md`.
+> It is **prescriptive**, not descriptive. For _what the system is and where things live_, see `[codebase-context.md](./codebase-context.md)`. The backend contract lives in `../nestjs-graphql/engineering-guidelines.md`.
 
 ---
 
@@ -11,7 +11,7 @@
 
 1. **This app is a pure backend consumer.** Never call a commerce platform, AI vendor, or S3 directly — only the backend GraphQL API. Pricing, catalog truth, cart/checkout, and AI execution are server-side.
 2. **Server state lives in Apollo; client/canvas state lives in Zustand.** Never copy server data into Zustand or hand-cache it.
-3. **All GraphQL goes through generated typed hooks.** Never hand-write an untyped `useQuery(gql\`...)`.
+3. **All GraphQL goes through generated typed documents** (client-preset `graphql()`), consumed via `useQuery(DOC)`/`useMutation(DOC)`. Never hand-write an untyped `gql` or use legacy per-operation hooks.
 4. **Components are presentational; logic lives in hooks.** No data fetching, business rules, or Fabric.js calls inside a JSX component body.
 5. **Feature-sliced + co-located tests.** Mirror an existing feature folder; every source file has a sibling test.
 6. **A change is done only when typecheck + lint + tests pass and coverage holds** (§11).
@@ -24,17 +24,17 @@ When adding `features/<feature>/`, mirror an existing feature:
 
 - `components/` — presentational `.tsx` + co-located `.test.tsx`.
 - `hooks/use<Feature>.ts` (+ `.test.ts`) — the feature's logic and store/Apollo wiring.
-- `graphql/*.graphql` — operations for this feature (consumed via generated hooks).
+- `graphql/operations.ts` — typed `graphql("query …")` documents (client-preset; **not** `.graphql` SDL files).
 - `utils/` (pure, + tests), `types.ts`, `constants.ts`.
 
-**Naming (required):** files **kebab-case** for hooks/utils (`use-canvas-sync.ts` or `useCanvasSync.ts` — match the existing repo convention), **PascalCase** for components (`DesignCanvas.tsx`); tests are `*.test.ts(x)` beside source; GraphQL operations are named (`query Products`, `mutation AddToCart`). Decide CORE vs lazy: only `canvas/`, `multi-side/`, `history/` are CORE.
+**Naming (required):** **camelCase `useXxx.ts` hooks** (`useCanvasSync.ts`), **PascalCase components** (`DesignCanvas.tsx`), kebab-case for plain utils; tests are `*.test.ts(x)` beside source; GraphQL operations are named (`query Products`, `mutation AddToCart`). Decide CORE vs lazy: only `canvas/`, `multi-side/`, `history/` are CORE.
 
 ### Module boundaries & dependencies (keep features decoupled)
 
 - **must not** import from another feature's internals (`features/a/`** → `features/b/`**). Share **down** to `shared/`/`lib/` or compose **up** at the `pages`/`app` layer — never feature-to-feature.
 - **CORE exception:** the CORE features `canvas/`, `multi-side/`, `history/` are shared infrastructure other features may import. CORE itself **must not** depend on any non-CORE feature.
-- **Allowed import direction:** `app` → `pages` → `features` → (`shared`, `lib`, `store`, `graphql`). Never upward — a feature importing a page or `app/` is a bug.
-- `**lib/` vs `shared/` (don't mix):** `lib/` = app-level integrations/singletons (Apollo client, auth, i18n, config, telemetry); `shared/` = reusable **presentational** UI + pure hooks/utils. No app singletons in `shared/`, no UI widgets in `lib/`.
+- **Allowed import direction:** `app` → `pages` → `features` → (`shared`, `lib`, `store`, `gql`). Never upward — a feature importing a page or `app/` is a bug.
+- `**lib/` vs `shared/` (don't mix):** `lib/` = app-level integrations/singletons (Apollo client, auth, i18n, config, telemetry); `shared/` = reusable **presentational\*\* UI + pure hooks/utils. No app singletons in `shared/`, no UI widgets in `lib/`.
 - **should** enforce the above mechanically with `eslint-plugin-boundaries` (or `import/no-restricted-paths`) so a violation fails lint, not review.
 
 ---
@@ -55,18 +55,19 @@ When adding `features/<feature>/`, mirror an existing feature:
 - **must** keep **canvas/UI state in Zustand slices** with Immer; mutate via actions, never reach into the store object directly from components.
 - **must** sync Fabric.js ↔ store only through `useCanvasSync` (one place), debounced; never scatter ad-hoc Fabric→store writes.
 - **should** use React local state for ephemeral UI (open/close, hover) — don't promote it to Zustand.
-- **must** persist only recoverable draft state to IndexedDB (autosave/crash recovery), never tokens or server data.
+- **must** persist only recoverable draft state to IndexedDB (autosave/crash recovery), never tokens or server data; **key drafts per user id** and **clear them on logout** so one customer's design can't leak into the next session on a shared device.
 
 ---
 
 ## 4. GraphQL & data access (Apollo Client + codegen **client-preset**)
 
-- **must** generate types with `**@graphql-codegen/client-preset`** (typed `graphql()` documents + fragment masking) into `src/gql/` — **not** the legacy `typescript-react-apollo` per-operation hooks. `src/gql/` is generated; never hand-edit it.
-- **must** run codegen against the **committed `schema.gql`** (synced from the backend) or a dev/staging endpoint — **never prod** (introspection is off there). Codegen runs in **CI and fails on schema drift**; map custom scalars (`DateTime`, `JSON`, `Upload`) and use `enumsAsTypes`.
+- **must** generate types with `**@graphql-codegen/client-preset`** (typed `graphql()` documents + fragment masking) into `src/gql/` — **not\*\* the legacy `typescript-react-apollo` per-operation hooks. `src/gql/` is generated; never hand-edit it.
+- **must** run codegen against the **committed `schema.gql`** (synced from the backend) or a dev/staging endpoint — **never prod** (introspection is off there). Codegen runs in **CI and fails on schema drift**; map custom scalars (`DateTime`, `JSON`) and use `enumsAsTypes`. (No `Upload` scalar — uploads use presigned S3 `PUT` and bypass GraphQL, see §6.)
+- **must** point codegen's `documents` at **source files** — `['src/**/*.{ts,tsx}', '!src/gql/**']` — never at `*.graphql` files (client-preset scans `graphql()` calls in TS/TSX).
 - **must** write operations as typed `graphql("query …")` documents in the feature's `graphql/operations.ts`, consumed via Apollo `useQuery(DOC)` / `useMutation(DOC)` — never hand-write an untyped `gql`.
 - **must** **colocate fragments** on the component that needs them (`graphql("fragment …")`) and read via `useFragment` (fragment masking): each component declares exactly the fields it uses — no over-fetching, no cross-feature field coupling.
 - **must** use the backend's **Relay connection** pagination (`edges`/`pageInfo`/`first`/`after`) and configure `relayStylePagination` in the cache `typePolicies` (`lib/apollo/cache.ts`) for correct merges; never request unbounded lists.
-- **must** centralize client wiring in `lib/apollo/`: a link chain **errorLink → retryLink → authLink (Bearer) → langLink (Accept-Language) → httpLink**, with a `split` routing subscriptions to `**graphql-ws`** (JWT in `connectionParams`).
+- **must** centralize client wiring in `lib/apollo/`: a link chain **errorLink → retryLink → authLink (Bearer) → langLink (Accept-Language) → httpLink**, with a `split` routing subscriptions to `**graphql-ws`\*\* (JWT in `connectionParams`).
 - **must** read errors from **extensions.code** (`UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`, `CONFLICT`, `RATE_LIMITED`, `INTERNAL`) in the central **errorLink** → refresh on `UNAUTHENTICATED`, map the rest to UX (field errors, toast) — never parse message strings.
 - **should** rely on the normalized cache for updates; use optimistic UI only where the server result is predictable.
 
@@ -79,6 +80,7 @@ When adding `features/<feature>/`, mirror an existing feature:
 - **must** authenticate via the backend login mutation; hold the access token **in memory** (refresh-token flow), attach it as `Authorization: Bearer` via an Apollo auth link, and refresh on `UNAUTHENTICATED`.
 - **must not** store the access token in `localStorage`/`sessionStorage` in plaintext or log it; never put it in a `VITE_` var or the URL.
 - **must** establish `graphql-ws` subscriptions with the JWT in `connectionParams`, and tear them down on logout.
+- **must** handle **token expiry on long-lived subscriptions** (e.g. an AI-job subscription): refresh the JWT and **reconnect `graphql-ws` with the new `connectionParams`** — never let a job socket die silently or reconnect with a stale token.
 - **must** treat the client as **untrusted for authorization** — hide actions the user can't perform for UX, but rely on the server to enforce (a hidden button is not security).
 
 ---
@@ -89,6 +91,7 @@ When adding `features/<feature>/`, mirror an existing feature:
 - **must** load resulting assets from the **signed URL** the backend returns; don't assume a public bucket or construct S3 URLs.
 - **must** show progress/cancel UI for long jobs and handle failure/timeout with a retry path (jobs can fail).
 - **must** validate uploads client-side (type + `VITE_MAX_UPLOAD_SIZE_MB`) before sending — but treat server validation as authoritative.
+- **must** upload images via the **presigned-URL flow**, never through the GraphQL `Upload` scalar: (1) request a presigned upload URL from the backend (mutation), (2) `PUT` the file bytes **directly to S3** via that URL, (3) reference the returned object key in a follow-up mutation. The client never holds S3 credentials and never builds bucket URLs itself.
 
 ---
 
@@ -101,11 +104,11 @@ When adding `features/<feature>/`, mirror an existing feature:
 
 ---
 
-## 8. i18n (two layers — UI strings *and* server content)
+## 8. i18n (two layers — UI strings _and_ server content)
 
 **Layer 1 — the strings we author (i18next):**
 
-- **must not** hardcode *any* user-facing string — every label, button, tooltip, toast, empty state, and client-side validation hint goes through `t('key')`. A literal in JSX is a bug.
+- **must not** hardcode _any_ user-facing string — every label, button, tooltip, toast, empty state, and client-side validation hint goes through `t('key')`. A literal in JSX is a bug.
 - **must** keep translations in `src/lib/i18n/locales/<lang>/<namespace>.json`, **namespaced per feature** (`common`, `canvas`, `cart`, …); read via `useTranslation('<namespace>')`.
 - **must** add every new key to **all** supported locales (at minimum the default); a missing key falls back to the default locale — **never** render a raw key or English to a non-default locale.
 - **must** use **interpolation / ICU plurals** (`t('cartItems', { count })`) — **never** string-concatenate translated fragments (word order and pluralization differ per language).
@@ -129,7 +132,7 @@ When adding `features/<feature>/`, mirror an existing feature:
 
 ## 10. Security (client-side)
 
-The backend is the enforcement boundary; these rules close the *frontend* surface. (This is a customer-facing app, but the baseline hardening below is non-negotiable.)
+The backend is the enforcement boundary; these rules close the _frontend_ surface. (This is a customer-facing app, but the baseline hardening below is non-negotiable.)
 
 ### XSS & DOM safety
 
@@ -141,16 +144,21 @@ The backend is the enforcement boundary; these rules close the *frontend* surfac
 
 - **must** keep the access token **in memory only** (§5) — never `localStorage`/`sessionStorage`, never logged, never in a `VITE_` var or URL.
 - **must not** put any secret in the client; every `VITE_` value ships to the browser.
-- **must** only persist **recoverable draft/canvas state** to IndexedDB (autosave) — **never** tokens, credentials, or server data; clear the Apollo cache + Zustand + `graphql-ws` on logout.
+- **must** only persist **recoverable draft/canvas state** to IndexedDB (autosave) — **never** tokens, credentials, or server data. Key it per user id, and on logout clear the Apollo cache + Zustand + `graphql-ws` **and the user's IndexedDB drafts** (shared-device privacy).
+- **must** validate `import.meta.env` **once at startup** in `lib/config` with a Zod schema and **fail fast** if a required var (e.g. `VITE_GRAPHQL_HTTP_URL`) is missing/malformed; the app reads typed config from `lib/config`, never `import.meta.env` directly.
 
 ### Transport & headers (`nginx.conf`)
 
-- **must** ship a strict **CSP** (`default-src 'self'`; no `unsafe-eval`; explicit allowlist for the GraphQL/WS origins and the signed-URL/asset origin), `frame-ancestors 'none'` (clickjacking), `X-Content-Type-Options: nosniff`, a sane `Referrer-Policy`, and **HSTS**; serve only over **HTTPS** (no mixed content).
+- **must** ship a strict **CSP**: `default-src 'self'`; `script-src 'self'` (**no `unsafe-inline`, no `unsafe-eval`**); `style-src 'self'` — use a **nonce/hash** for any library that injects inline styles (Tailwind compiles to a static stylesheet; Fabric may set inline element styles) rather than blanket `unsafe-inline`; `connect-src` allowlisting the GraphQL/WS origins; `img-src`/`media-src` allowlisting the signed-URL/asset origin. Plus `frame-ancestors 'none'` (clickjacking), `X-Content-Type-Options: nosniff`, a sane `Referrer-Policy`, and **HSTS**; serve only over **HTTPS** (no mixed content).
 - **must** load assets only via the backend's **signed URLs / allowed origins**.
+
+### Telemetry & PII
+
+- **must not** log tokens or PII; **scrub Sentry breadcrumbs/context** of sensitive fields (auth headers, customer data, upload contents) before sending.
 
 ### Supply chain
 
-- **must** `npm ci` against a committed lockfile and run `**npm audit`** in CI (fail on high/critical); keep deps current (Dependabot/Renovate).
+- **must** `npm ci` against a committed lockfile and run `**npm audit`\*\* in CI (fail on high/critical); keep deps current (Dependabot/Renovate).
 - **must** minimize third-party scripts; any external script needs **SRI** + a CSP allowlist entry.
 
 ### Authorization & trust
@@ -165,6 +173,7 @@ The backend is the enforcement boundary; these rules close the *frontend* surfac
 - **must** co-locate unit tests (`*.test.tsx`/`*.test.ts`) beside source; render via `__tests__/test-utils.tsx` (all providers); mock the API with **MSW**, not by stubbing fetch ad hoc.
 - **must** test: component states (loading/error/empty), hook logic, store slices, and util pure functions. Canvas: init/dispose, sync, undo/redo.
 - **must** cover cross-feature flows (design → AI → cart) with **Playwright** e2e.
+- **must** verify **accessibility** (§2) in tests — `jest-axe`/`axe-core` asserting no critical violations on key screens, plus role/label queries and keyboard-operability checks for toolbar/canvas controls — so the §2 accessibility "must" is actually enforced.
 - **"Done" is objective:** `tsc --noEmit` clean, ESLint/Prettier clean, unit + e2e green, coverage ≥ project threshold (default **80%**), and CI green — local green alone is not done.
 
 ---
@@ -186,4 +195,3 @@ The backend is the enforcement boundary; these rules close the *frontend* surfac
 - ❌ Rendering server data without loading/error/empty handling, or parsing error message text instead of `extensions.code`.
 - ❌ Requesting unbounded lists instead of Relay pagination.
 - ❌ Shipping a feature without co-located tests, or calling it done on red CI / below coverage.
-
